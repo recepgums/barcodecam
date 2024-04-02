@@ -2,10 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-})->middleware('auth');
-
+Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->middleware('auth');
 
 Auth::routes();
 
