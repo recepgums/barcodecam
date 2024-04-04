@@ -21,8 +21,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'supplier_id',
-        'token',
     ];
 
     /**
@@ -44,4 +42,9 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    public function stores()
+    {
+        return $this->hasMany(Store::class);
+    }
 }

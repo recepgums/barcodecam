@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Order;
+use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -26,6 +28,9 @@ class HomeController extends Controller
     {
         $orderFetchDate =  Cache::get('order_fetch_date_' . auth()->id());
 
-        return view('home',compact('orderFetchDate'));
+        $stores = Store::where('user_id',auth()->id())->get();
+        $orderCount = Order::where('user_id',auth()->id())->count();
+
+        return view('home',compact('orderFetchDate','stores','orderCount'));
     }
 }

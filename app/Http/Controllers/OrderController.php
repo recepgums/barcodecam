@@ -21,20 +21,19 @@ class OrderController extends Controller
             $products = json_decode($order?->lines);
             $view = view('components.modal.order-detail', ['products' => $products,'order' => $order])->render();
 
-          return response()->json(['view' => $view]);
+            return response()->json(['view' => $view]);
         }
 
         return response()->json(['data' => $order]);
     }
 
-    public function getOrders()
+    public function getOrders(Request $request)
     {
-
         $orders = [];
         $page = 0;
         $user = auth()->user();
         do {
-            $currentOrders = TrendyolHelper::getOrders($user, $page);
+            $currentOrders = TrendyolHelper::getOrders($user, $page,$request->get('order_status'));
 
             if (!empty($currentOrders)) {
                 $orders = array_merge($orders, $currentOrders);
@@ -43,7 +42,6 @@ class OrderController extends Controller
                 break;
             }
         } while (true);
-
 
         try {
             DB::beginTransaction();

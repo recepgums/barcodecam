@@ -9,6 +9,19 @@ class Order extends Model
 {
     use HasFactory;
 
+    const TYPES = [
+        'Created' => 'Oluşturuldu',
+        'Picking' => 'Toplama',
+        'Invoiced' => 'Faturalı',
+        'Shipped' => 'Gönderildi',
+        'Cancelled' => 'İptal edildi',
+        'Delivered' => 'Teslim edilmiş',
+        'UnDelivered' => 'Teslim Edilmedi',
+        'Returned' => 'İade',
+        'Repack' => 'Yeniden paketle',
+        'UnPacked' => 'Paketlenmemiş',
+        'UnSupplied' => 'Tedarik Edilmedi',
+    ];
     protected $fillable = [
         'user_id',
         'customer_name',
