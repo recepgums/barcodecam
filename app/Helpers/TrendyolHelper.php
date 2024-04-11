@@ -11,13 +11,14 @@ class TrendyolHelper
     {
         $defaultStore = $user->stores()->defaultStore()->first();
 
+        $queryString=  'orderByField=PackageLastModifiedDate&orderByDirection=DESC&size=200&page=' . $page;
+        if ($orderStatus){
+            $queryString.= '&status=' . $orderStatus;
+        }
+
         $response = Http::withHeaders([
             'Authorization' => 'Basic ' . $defaultStore->token
-        ])->get('https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/orders?
-        orderByField=PackageLastModifiedDate&
-        orderByDirection=DESC&
-        status=' . $orderStatus . '&
-        size=200&page=' . $page);
+        ])->get('https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/orders?',$queryString);
 
         $responseContent = $response->body();
         return json_decode($responseContent)?->content;
@@ -26,6 +27,13 @@ class TrendyolHelper
     public static function getProductByBarcode(User $user, $barcode)
     {
         $defaultStore = $user->stores()->defaultStore()->first();
+
+        if (! $defaultStore){
+            dd('aaa');
+            $defaultStore = $user->stores()->orderByDesc('created_at')->first();
+
+            $defaultStore->update(['is_default' => true]);
+        }
 
         $response = Http::withHeaders([
             'Authorization' => 'Basic ' . $defaultStore->token

@@ -26,4 +26,16 @@ class Store extends Model
     {
         return $query->where('is_default',true);
     }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saved(function ($store) {
+            $oldAttributes = $store->getOriginal();
+
+            $newAttributes = $store->getAttributes();
+            dd('store saving' , $store,$oldAttributes,$oldAttributes,$newAttributes);
+        });
+    }
 }
