@@ -25,10 +25,14 @@ class OrderController extends Controller
                 $products = json_decode($order?->lines);
                 $view = view('components.modal.order-detail', ['products' => $products,'order' => $order])->render();
 
-                return response()->json(['view' => $view,'order_id' => $order->id]);
+                return response()->json(['view' => $view,'order_id' => $order?->id]);
             }
         }catch (Exception $e) {
-            Log::error('ERROR ON GET ORDER BY TRACK ID'. $e->getMessage().$e->getLine().$e->getFile());
+            Log::error('ERROR ON GET ORDER BY TRACK ID '.$request->get('code') . "\n".
+                json_encode($order) . "....." .
+                $e->getMessage().$e->getLine().$e->getFile());
+
+            dd($e);
         }
 
         return response()->json(['data' => $order]);

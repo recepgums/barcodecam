@@ -228,6 +228,7 @@
                                     </div>
                                 </div>
                                 <div class="modal-footer">
+                                    <div class="order-summary"></div>
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Kapat</button>
                                 </div>
                             </div>
@@ -247,6 +248,27 @@
                                 <div class="modal-body">
                                     <p>Barkodu okuttuğunuz anda video kaydı başlayacaktır</p>
                                     <input type="text" name="barcode" class="form-control" id="barcodeInput">
+
+                                    <div class="row mt-5">
+                                        <div class="col-4"></div>
+                                        <div class="col-4">
+                                            <button type="button" class="btn" id="deleteValueButton">
+                                                <img src="{{asset('images/barcode/temizle_barcode.png')}}">
+                                            </button>
+                                        </div>
+                                        <div class="col-4"></div>
+                                        {{--
+                                        <div class="col-4">
+                                            <button type="button" class="btn">
+                                                <img src="{{asset('images/barcode/baslat_barcode.png')}}">
+                                            </button>
+                                        </div>
+                                        <div class="col-4">
+                                            <button type="button" class="btn">
+                                                <img src="{{asset('images/barcode/durdur_barcode.png')}}">
+                                            </button>
+                                        </div>--}}
+                                    </div>
                                     <div class="order-summary"></div>
                                 </div>
                                 <div class="modal-footer">
@@ -271,6 +293,10 @@
                                             <video style="display: none" id="videoElement" width="640" height="480" autoplay></video>
                                             <div id="loadingDiv" class="d-none text-center">
                                                 <div class="loader"></div>
+                                            </div>
+
+                                            <div id="playRecentVideo">
+
                                             </div>
                                         </div>
                                     </div>
@@ -365,6 +391,19 @@
                     success: function (response) {
                         console.log(response);
                         $('.order-summary').html(response?.view);
+
+/*
+                        $('#countdownButton').show().click(function () {
+                            // startVideoRecording(response?.order_id)
+                        });
+
+                        $('#cancelCountdownButton').show().click(function () {
+                            clearInterval(countdownInterval);
+                            $('#countdownButton').text('Video kaydına başla');
+                            $(this).hide();
+                        });*/
+
+                        // startCountdown();
                     },
                     error: function (xhr, status, error) {
                         console.error(xhr.responseText);
@@ -408,6 +447,7 @@
     <script>
         var countdownDuration = 5;
         var countdownInterval;
+        var orderId = null;
         var secondsLeft = countdownDuration;
 
         function startCountdown() {
@@ -417,7 +457,7 @@
                 updateCountdownLabel(secondsLeft);
                 if (secondsLeft <= 0) {
                     clearInterval(countdownInterval);
-                    startVideoRecording()
+                    startVideoRecording(orderId)
                 }
             }, 1000);
         }
@@ -456,6 +496,7 @@
                     };
 
                     mediaRecorder.onstop = function () {
+                        console.log("orderId inside onstop:", orderId);
                         var blob = new Blob(chunks, {type: 'video/webm'});
                         sendVideoToBackend(blob,orderId);
                     };
@@ -474,7 +515,7 @@
         function sendVideoToBackend(blob, orderId) {
             var formData = new FormData();
             formData.append('video', blob);
-
+alert(orderId)
             let storeVideoUrl = '{{ route("order.storeVideo", ":orderId") }}';
             storeVideoUrl = storeVideoUrl.replace(':orderId', orderId);
             var csrfToken = `{{csrf_token()}}`;
@@ -496,6 +537,11 @@
                     console.log('Video successfully sent to backend:', response);
                     // hide loading
                     $('#loadingDiv').addClass('d-none');
+                    $('#finishVideoButton').addClass('d-none');
+                    var videoElement = $('<video controls></video>');
+                    videoElement.attr('src', response.video_url);
+                    $('#playRecentVideo').append(videoElement);
+                    $('#videoElement').hide();
                 },
                 error: function(xhr, status, error) {
                     // hide loading
@@ -506,29 +552,72 @@
         }
 
         $('#webcamModal').on('show.bs.modal', function (e) {
-
+            // alert('sds')
         });
 
         var focusInterval;
         var isRequestSent = false;
 
-        $('#barcodeModal').on('show.bs.modal', function (e) {
-            $('#barcodeInput').focus();
 
+
+        $('#barcodeModal').on('shown.bs.modal', function (e) {
+
+            $('#barcodeInput').focus();
             focusInterval = setInterval(function () {
-                // $('#barcodeInput').focus();
+                $('#barcodeInput').focus();
             }, 3000);
+
+            setInterval(function () {
+                var barcodeValue = $('#barcodeInput').val();
+                if (barcodeValue.toLowerCase().includes("temizle") || barcodeValue.toLowerCase().includes("temızle")) {
+
+                    $('#barcodeInput').val(''); // Clear the input field
+                    $('.order-summary').html('')
+                }
+
+                var parsedValue = parseInt(barcodeValue);
+                if (!isNaN(parsedValue) && Number.isInteger(parsedValue)) {
+                    if (!isRequestSent) {
+                        isRequestSent = true;
+                        // Send the AJAX request
+                        $.ajax({
+                            url: '{{ route("order.getByCargoTrackId") }}',
+                            type: 'POST',
+                            dataType: 'json',
+                            data: {
+                                code: $(this).val(),
+                                response_type: 'view',
+                                _token: '{{ csrf_token() }}'
+                            },
+                            success: function (response) {
+                                $('.order-summary').html(response?.view);
+                                orderId = response?.order_id;
+
+                                // Reset the flag after the AJAX request is completed
+                                isRequestSent = false;
+                            },
+                            error: function (xhr, status, error) {
+                                console.error(xhr.responseText);
+
+                                // Reset the flag even in case of an error
+                                isRequestSent = false;
+                            },
+                        });
+                    }
+                }
+            }, 1000);
         }).on('hide.bs.modal', function (e) {
             clearInterval(focusInterval);
             resetModal()
         });
 
-        $('#barcodeInput').on('input', function () {
+        $('#deleteValueButton').on('click', function () {
+            $('#barcodeInput').val('')
+        });
+
+        $('#barcodeInput').on('change keyup', function () {
             if (!isRequestSent) {
                 isRequestSent = true;
-
-                var barcodeValue = $(this).val();
-                console.log("Barcode detected and read: " + barcodeValue);
 
                 // Send the AJAX request
                 $.ajax({
@@ -536,34 +625,27 @@
                     type: 'POST',
                     dataType: 'json',
                     data: {
-                        code: barcodeValue,
+                        code: $(this).val(),
                         response_type: 'view',
                         _token: '{{ csrf_token() }}'
                     },
                     success: function (response) {
                         $('.order-summary').html(response?.view);
+                        orderId = response?.order_id;
 
-                        $('#countdownButton').show().click(function () {
-                            startVideoRecording(response?.order_id)
-                        });
-
-                        $('#cancelCountdownButton').show().click(function () {
-                            clearInterval(countdownInterval);
-                            $('#countdownButton').text('Video kaydına başla');
-                            $(this).hide();
-                        });
-
-                        startCountdown();
+                        // Reset the flag after the AJAX request is completed
+                        isRequestSent = false;
                     },
                     error: function (xhr, status, error) {
                         console.error(xhr.responseText);
-                    },
-                    complete: function () {
+
+                        // Reset the flag even in case of an error
                         isRequestSent = false;
-                    }
+                    },
                 });
             }
         });
+
     </script>
 
     <script>
