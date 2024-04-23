@@ -239,24 +239,21 @@
                          aria-labelledby="barcodeModalLabel" aria-hidden="true">
                         <div class="modal-dialog  modal-xl" role="document">
                             <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="barcodeModalLabel">Barkod Okutma</h5>
-                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
-                                </div>
                                 <div class="modal-body">
                                     <p>Barkodu okuttuğunuz anda video kaydı başlayacaktır</p>
                                     <input type="text" name="barcode" class="form-control" id="barcodeInput">
 
-                                    <div class="row mt-5">
-                                        <div class="col-4"></div>
-                                        <div class="col-4">
+                                    <div class="row" id="helperBarcodeImages">
+                                        <div class="col-sm-4">
+                                        </div>
+                                        <div class="col-sm-4 text-center">
                                             <button type="button" class="btn" id="deleteValueButton">
                                                 <img src="{{asset('images/barcode/temizle_barcode.png')}}">
                                             </button>
+                                            <input type="checkbox" id="toggleBarcodeImages">
+
                                         </div>
-                                        <div class="col-4"></div>
+                                        <div class="col-sm-4"></div>
                                         {{--
                                         <div class="col-4">
                                             <button type="button" class="btn">
@@ -561,48 +558,46 @@ alert(orderId)
 
 
         $('#barcodeModal').on('shown.bs.modal', function (e) {
-
             $('#barcodeInput').focus();
+
+            var previousBarcodeValue = '';
             focusInterval = setInterval(function () {
                 $('#barcodeInput').focus();
-            }, 3000);
-
-            setInterval(function () {
-                var barcodeValue = $('#barcodeInput').val();
+                var barcodeValue = $('#barcodeInput').val() ?? "";
                 if (barcodeValue.toLowerCase().includes("temizle") || barcodeValue.toLowerCase().includes("temızle")) {
-
-                    $('#barcodeInput').val(''); // Clear the input field
+                    $('#barcodeInput').val('');
                     $('.order-summary').html('')
-                }
-
-                var parsedValue = parseInt(barcodeValue);
-                if (!isNaN(parsedValue) && Number.isInteger(parsedValue)) {
-                    if (!isRequestSent) {
-                        isRequestSent = true;
-                        // Send the AJAX request
-                        $.ajax({
-                            url: '{{ route("order.getByCargoTrackId") }}',
-                            type: 'POST',
-                            dataType: 'json',
-                            data: {
-                                code: $(this).val(),
-                                response_type: 'view',
-                                _token: '{{ csrf_token() }}'
-                            },
-                            success: function (response) {
-                                $('.order-summary').html(response?.view);
-                                orderId = response?.order_id;
-
-                                // Reset the flag after the AJAX request is completed
-                                isRequestSent = false;
-                            },
-                            error: function (xhr, status, error) {
-                                console.error(xhr.responseText);
-
-                                // Reset the flag even in case of an error
-                                isRequestSent = false;
-                            },
-                        });
+                    previousBarcodeValue = '';
+                }else{
+                    var parsedValue = parseInt(barcodeValue);
+                    if (
+                        !isNaN(parsedValue) &&
+                        Number.isInteger(parsedValue) &&
+                        (barcodeValue !== previousBarcodeValue) &&
+                        barcodeValue.length > 12
+                    ) {
+                        previousBarcodeValue = barcodeValue;
+                        try {
+                            $.ajax({
+                                url: '{{ route("order.getByCargoTrackId") }}',
+                                type: 'POST',
+                                dataType: 'json',
+                                data: {
+                                    code: barcodeValue,
+                                    response_type: 'view',
+                                    _token: '{{ csrf_token() }}'
+                                },
+                                success: function (response) {
+                                    $('.order-summary').html(response?.view);
+                                    orderId = response?.order_id;
+                                },
+                                error: function (xhr, status, error) {
+                                    console.error(xhr.responseText);
+                                },
+                            });
+                        }catch (e) {
+                            alert('An error occurred: ' + e.message);
+                        }
                     }
                 }
             }, 1000);
@@ -615,7 +610,19 @@ alert(orderId)
             $('#barcodeInput').val('')
         });
 
-        $('#barcodeInput').on('change keyup', function () {
+
+        $('#toggleBarcodeImages').change(function() {
+            // Check if the checkbox is checked
+            if ($(this).is(':checked')) {
+                // If checked, hide the element with ID 'helperBarcodeImages'
+                $('#helperBarcodeImages').hide();
+            } else {
+                // If unchecked, show the element with ID 'helperBarcodeImages'
+                $('#helperBarcodeImages').show();
+            }
+        });
+
+       /* $('#barcodeInput').on('change keyup', function () {
             if (!isRequestSent) {
                 isRequestSent = true;
 
@@ -644,7 +651,7 @@ alert(orderId)
                     },
                 });
             }
-        });
+        });*/
 
     </script>
 

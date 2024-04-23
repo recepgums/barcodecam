@@ -12,15 +12,15 @@
             @foreach($products as $product)
                 <tr>
                     <td style="width: 33.33%;text-align: center">
-                        <img style="width: 40%; height: 150px;"
+                        <img style="width: 40%; height: 100px;"
                              src="{{\App\Helpers\TrendyolHelper::getProductByBarcode(auth()->user(),$product->barcode)->images[0]->url}}">
                     </td>
-                    <td style="width: 33.33%; padding-top: 44px; text-align: center; vertical-align: middle;color: red">
+                    <td style="width: 20%; padding-top: 44px; text-align: center; vertical-align: middle;color: red">
                         <h1 style="margin: 0;">
                             <b>X 1</b>
                         </h1>
                     </td>
-                    <td style="width: 33.33%; font-size: 20px;">
+                    <td style="width: 40%;">
                         {{$product?->productName}}
                     </td>
                 </tr>
