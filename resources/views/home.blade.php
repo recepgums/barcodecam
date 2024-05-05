@@ -6,6 +6,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/quagga/dist/quagga.min.js"></script>
     <style>
+        .drawingBuffer{
+            display: none;
+        }
         .card-button {
             background-color: white;
             border: 1px solid #e9ecef;
@@ -203,24 +206,9 @@
                                     </button>
                                 </div>
                                 <div class="modal-body">
-                                    <p>Tercihen otomatik olarak bir sonraki siparişe geçmesi için süreleri
-                                        ayarlayabilirsiniz</p>
-                                    <p>Girdiğiniz süre sonunda video bitecek ve yeni sipariş için barkod okutmaya hazır
-                                        hale gelecek</p>
-
-                                    <!-- Countdown input -->
-                                    <div class="form-group">
-                                        <label for="countdownInput">Video uzunluğu (saniye):</label>
-                                        <input type="number" class="form-control" id="countdownInput"
-                                               placeholder="Saniye girin">
-                                    </div>
-
-                                    <button type="submit" class="btn btn-primary" id="startButton">Başlat</button>
-                                    <button type="submit" class="btn btn-danger d-none" id="finishButton">Bitir</button>
-                                    <br>
                                     <div class="row text-center">
                                         <div class="col-sm-6">
-                                            <div id="scanner-container"></div>
+                                            <div id="scanner-container" class="row"></div>
                                         </div>
                                         <div class="col-sm-6">
                                             <div id="html-result"></div>
@@ -229,6 +217,7 @@
                                 </div>
                                 <div class="modal-footer">
                                     <div class="order-summary"></div>
+{{--                                    <button type="button" class="btn btn-success" id="startVideoButton">Video Başlat</button>--}}
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Kapat</button>
                                 </div>
                             </div>
@@ -244,8 +233,6 @@
                                     <input type="text" name="barcode" class="form-control" id="barcodeInput">
 
                                     <div class="row" id="helperBarcodeImages">
-                                        <div class="col-sm-4">
-                                        </div>
                                         <div class="col-sm-4 text-center">
                                             <button type="button" class="btn" id="deleteValueButton">
                                                 <img src="{{asset('images/barcode/temizle_barcode.png')}}">
@@ -253,18 +240,16 @@
                                             <input type="checkbox" id="toggleBarcodeImages">
 
                                         </div>
-                                        <div class="col-sm-4"></div>
-                                        {{--
                                         <div class="col-4">
-                                            <button type="button" class="btn">
+                                            <button type="button" class="btn" id="startVideoButton">
                                                 <img src="{{asset('images/barcode/baslat_barcode.png')}}">
                                             </button>
                                         </div>
                                         <div class="col-4">
-                                            <button type="button" class="btn">
+                                            <button type="button" class="btn" id="stopVideoButton">
                                                 <img src="{{asset('images/barcode/durdur_barcode.png')}}">
                                             </button>
-                                        </div>--}}
+                                        </div>
                                     </div>
                                     <div class="order-summary"></div>
                                 </div>
@@ -359,16 +344,6 @@
             Quagga.start();
         });
 
-        document.getElementById('startButton').addEventListener('click', function () {
-            Quagga.start();
-            $('#startButton').addClass('d-none');
-            $('#finishButton').removeClass('d-none');
-        });
-
-        document.getElementById('finishButton').addEventListener('click', function () {
-            $('#finishButton').addClass('d-none');
-            $('#startButton').removeClass('d-none');
-        });
         var isRequestSent = false;
 
         Quagga.onDetected(function (result) {
@@ -386,9 +361,8 @@
                         _token: '{{ csrf_token() }}'
                     },
                     success: function (response) {
-                        console.log(response);
-                        $('.order-summary').html(response?.view);
-
+                        $('#html-result').html(response?.view);
+                        orderId = response?.order_id
 /*
                         $('#countdownButton').show().click(function () {
                             // startVideoRecording(response?.order_id)
@@ -416,7 +390,7 @@
         });
 
 
-        Quagga.onProcessed(function (result) {
+        /*Quagga.onProcessed(function (result) {
             var drawingCtx = Quagga.canvas.ctx.overlay,
                 drawingCanvas = Quagga.canvas.dom.overlay;
 
@@ -438,7 +412,7 @@
                     Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
                 }
             }
-        });
+        });*/
     </script>
 
     <script>
@@ -512,7 +486,6 @@
         function sendVideoToBackend(blob, orderId) {
             var formData = new FormData();
             formData.append('video', blob);
-alert(orderId)
             let storeVideoUrl = '{{ route("order.storeVideo", ":orderId") }}';
             storeVideoUrl = storeVideoUrl.replace(':orderId', orderId);
             var csrfToken = `{{csrf_token()}}`;
@@ -610,6 +583,18 @@ alert(orderId)
             $('#barcodeInput').val('')
         });
 
+
+        $('#startVideoButton').on('click', function () {
+            startVideoRecording(orderId)
+        });
+        $('#stopVideoButton').on('click', function () {
+            sendVideoToBackend()
+        });
+
+
+        $('#startVideoButton').click(function() {
+            startVideoRecording(orderId)
+        });
 
         $('#toggleBarcodeImages').change(function() {
             // Check if the checkbox is checked

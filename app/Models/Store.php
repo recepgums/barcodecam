@@ -35,7 +35,6 @@ class Store extends Model
             $oldAttributes = $store->getOriginal();
 
             $newAttributes = $store->getAttributes();
-            dd('store saving' , $store,$oldAttributes,$oldAttributes,$newAttributes);
         });
     }
 }

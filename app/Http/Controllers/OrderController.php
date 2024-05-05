@@ -13,6 +13,14 @@ use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
+
+    public function index(Request $request)
+    {
+        $orders = Order::where('user_id',auth()->id())
+            ->whereHas('media')->get();
+
+        return view('orders.index', ['orders' => $orders]);
+    }
     public function getByCargoTrackId(Request $request)
     {
         try {
