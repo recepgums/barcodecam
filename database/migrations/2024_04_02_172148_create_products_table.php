@@ -13,6 +13,13 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('store_id')->constrained();
+            $table->foreignId('user_id')->constrained();
+            $table->string('barcode')->index();
+            $table->string('title');
+            $table->string('image_url');
+            $table->integer('count')->nullable();
+
             $table->timestamps();
         });
     }

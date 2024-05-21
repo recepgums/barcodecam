@@ -226,7 +226,7 @@
 
                     <div class="modal fade" id="barcodeModal" tabindex="-1" role="dialog"
                          aria-labelledby="barcodeModalLabel" aria-hidden="true">
-                        <div class="modal-dialog  modal-xl" role="document">
+                        <div class="modal-dialog  modal-xl" style="max-width: 1200px;!important;" role="document">
                             <div class="modal-content">
                                 <div class="modal-body">
                                     <p>Barkodu okuttuğunuz anda video kaydı başlayacaktır</p>
