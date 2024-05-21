@@ -1,32 +1,22 @@
 @if($products && count($products) > 0)
-    <div class="table-responsive card">
-        <table class="table table-striped">
-            <thead>
-            <tr>
-                <th style="text-align: center"></th>
-                <th style="text-align: center">Adet</th>
-                <th style="text-align: center">Ürün Adı</th>
-            </tr>
-            </thead>
-            <tbody>
+    <div class="container mt-4">
+        <div class="row">
             @foreach($products as $product)
-                <tr>
-                    <td style="width: 33.33%;text-align: center">
-                        <img style="width: 40%; height: 100px;"
-                             src="{{\App\Helpers\TrendyolHelper::getProductByBarcode(auth()->user(),$product->barcode)->images[0]->url}}">
-                    </td>
-                    <td style="width: 20%; padding-top: 44px; text-align: center; vertical-align: middle;color: red">
-                        <h1 style="margin: 0;">
-                            <b>X 1</b>
-                        </h1>
-                    </td>
-                    <td style="width: 40%;">
-                        {{$product?->productName}}
-                    </td>
-                </tr>
+                <div class="col-md-3 mb-1 px-1">
+                    <div class="card h-100 shadow rounded">
+                        <img src="{{ \App\Helpers\TrendyolHelper::getProductByBarcode(auth()->user(), $product->barcode)->images[0]->url }}" class="card-img-top rounded-top product-image" alt="Product Image">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">
+                                {{ Str::limit($product->productName, 40) }}
+                            </h5>
+                            <p class="card-text text-danger">
+                                <b>X {{$product->quantity}}</b>
+                            </p>
+                        </div>
+                    </div>
+                </div>
             @endforeach
-            </tbody>
-        </table>
+        </div>
     </div>
 @endif
 @if($order)
@@ -60,3 +50,9 @@
         olduğundan emin olun
     </div>
 @endif
+<style>
+    .product-image {
+        height: 250px; /* Set a fixed height for the images */
+        object-fit: cover; /* Ensure the images cover the area without distortion */
+    }
+</style>

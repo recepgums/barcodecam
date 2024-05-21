@@ -2,7 +2,9 @@
 
 namespace App\Helpers;
 
+use App\Models\Product;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class TrendyolHelper
@@ -35,11 +37,21 @@ class TrendyolHelper
             $defaultStore->update(['is_default' => true]);
         }
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Basic ' . $defaultStore->token
-        ])->get('https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/products?barcode=' . $barcode);
+        return Cache::remember($barcode,43200,function ()use($defaultStore,$barcode,$user){
+            $response =  Http::withHeaders(['Authorization' => 'Basic ' . $defaultStore->token])
+                ->get('https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/products?barcode=' . $barcode);
 
-        $responseContent = $response->body();
-        return json_decode($responseContent)->content[0];
+            $responseContent = $response->body();
+            return json_decode($responseContent)->content[0];
+
+           /* $product = Product::where('barcode',$barcode)
+                ->where('user_id',$user->id)
+                ->firstOrCreate([
+
+                ]);
+
+            return $product;*/
+        });
+
     }
 }
