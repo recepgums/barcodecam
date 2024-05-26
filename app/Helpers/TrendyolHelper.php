@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TrendyolHelper
 {
@@ -42,16 +43,22 @@ class TrendyolHelper
                 ->get('https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/products?barcode=' . $barcode);
 
             $responseContent = $response->body();
-            return json_decode($responseContent)->content[0];
+            $content = json_decode($responseContent)->content[0];
 
-           /* $product = Product::where('barcode',$barcode)
-                ->where('user_id',$user->id)
-                ->firstOrCreate([
-
-                ]);
-
-            return $product;*/
+            return Product::firstOrCreate(
+                [
+                    'barcode' => $barcode,
+                    'user_id' => $user->id,
+                    'store_id' => $defaultStore->id,
+                ],
+                [
+                    'title' => $content->title,
+                    'price' => $content->salePrice,
+                    'quantity' => $content->quantity,
+                    'image_url' => $content->images[0]->url,
+                    'productUrl' => $content->productUrl,
+                ]
+            );
         });
-
     }
 }

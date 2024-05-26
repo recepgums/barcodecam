@@ -14,8 +14,11 @@ class Product extends Model
         'user_id',
         'barcode',
         'title',
+        'price',
+        'quantity',
         'image_url',
-        'count',
+        'productUrl',
+        'order_count',
     ];
 
     public function store()

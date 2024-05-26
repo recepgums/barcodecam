@@ -22,9 +22,9 @@ class DatabaseSeeder extends Seeder
 
         $store = Store::create([
             'user_id' => $user->id,
-            'merchant_name' => 'Tone Ease',
-            'supplier_id' => 817139,
-            'token' => 'MjhKRjZ4enNkb2RnRkFjcHhmZUQ6endVQUJXMEpiNXBpSjhXaU5PZ00=',
+            'merchant_name' => 'Beyzanaa',
+            'supplier_id' => 638780,
+            'token' => 'TkRCdGZ2WVFCSm1xeTRsVXN0SnU6Z3hNamJ5bjU3TkhjM1I2VDJQQmc=',
             'is_default' => 1,
         ]);
     }

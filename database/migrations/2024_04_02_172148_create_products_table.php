@@ -13,12 +13,15 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('store_id')->constrained();
-            $table->foreignId('user_id')->constrained();
+            $table->foreignId('store_id')->nullable()->constrained();
+            $table->foreignId('user_id')->nullable()->constrained();
             $table->string('barcode')->index();
-            $table->string('title');
-            $table->string('image_url');
-            $table->integer('count')->nullable();
+            $table->string('title')->nullable();
+            $table->double('price')->nullable();
+            $table->integer('quantity')->nullable();
+            $table->string('image_url')->nullable();
+            $table->string('productUrl')->nullable();
+            $table->integer('order_count')->default(0);
 
             $table->timestamps();
         });

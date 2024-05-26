@@ -24,7 +24,6 @@ class OrderController extends Controller
     public function getByCargoTrackId(Request $request)
     {
         try {
-            Log::info(json_encode($request->all()));
             $order = Order::where('user_id', auth()->id())
                 ->where('cargo_tracking_number', $request->get('code'))
                 ->first();
@@ -33,14 +32,14 @@ class OrderController extends Controller
                 $products = json_decode($order?->lines);
                 $view = view('components.modal.order-detail', ['products' => $products,'order' => $order])->render();
 
-                return response()->json(['view' => $view,'order_id' => $order?->id]);
+                return response()->json(['view' => $view,'order_id' => $order?->id,'video_url' => $order?->getFirstMediaUrl('videos')]);
             }
         }catch (Exception $e) {
             Log::error('ERROR ON GET ORDER BY TRACK ID '.$request->get('code') . "\n".
                 json_encode($order) . "....." .
                 $e->getMessage().$e->getLine().$e->getFile());
-
-            dd($e);
+            dd($e->getMessage().$e->getLine().$e->getFile());
+            return response()->json(['data' => $order]);
         }
 
         return response()->json(['data' => $order]);
@@ -51,6 +50,8 @@ class OrderController extends Controller
         $orders = [];
         $page = 0;
         $user = auth()->user();
+        $defaultStore = $user->stores()->defaultStore()->first();
+
         do {
             $currentOrders = TrendyolHelper::getOrders($user, $page,$request->get('order_status'));
 
@@ -69,6 +70,7 @@ class OrderController extends Controller
             foreach ($orders as $order) {
                 Order::create([
                     'user_id' => auth()->id(),
+                    'store_id' => $defaultStore?->id,
                     'customer_name' => $order?->shipmentAddress?->fullName ?? '',
                     'address' => $order->shipmentAddress?->fullAddress ?? '',
                     'order_id' => $order?->id,
@@ -92,15 +94,25 @@ class OrderController extends Controller
 
     public function storeVideo(Order $order,Request $request)
     {
-        $randomString = Str::random(10);
+        Db::beginTransaction();
+        try {
+            $order->clearMediaCollection('videos');
 
-        $filename = "{$order->user_id}_{$order->tracking_id}_{$randomString}.mp4";
+            $randomString = Str::random(10);
 
-        $mediaItem = $order->addMedia($request->file('video'))
-            ->usingFileName($filename)
-            ->toMediaCollection('videos');
+            $filename = "{$order->user_id}_{$order->tracking_id}_{$randomString}.mp4";
 
-        $videoUrl = $mediaItem->getUrl();
+            $mediaItem = $order->addMedia($request->file('video'))
+                ->usingFileName($filename)
+                ->toMediaCollection('videos');
+
+            $videoUrl = $mediaItem->getUrl();
+
+            DB::commit();
+        }catch (Exception $exception){
+            DB::rollBack();
+            dd($exception->getMessage());
+        }
 
         return response()->json([
             'video_url' => $videoUrl
