@@ -26,6 +26,7 @@ class Order extends Model  implements HasMedia
     ];
     protected $fillable = [
         'user_id',
+        'store_id',
         'customer_name',
         'address',
         'order_id',

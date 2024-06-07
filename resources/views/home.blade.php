@@ -471,7 +471,7 @@
                         }
                     }
                 }
-            }, 1000);
+            }, 100);
         }).on('hide.bs.modal', function (e) {
             clearInterval(focusInterval);
             resetModal()

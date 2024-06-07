@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\TrendyolHelper;
 use App\Models\Order;
+use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -53,7 +54,7 @@ class OrderController extends Controller
         $defaultStore = $user->stores()->defaultStore()->first();
 
         do {
-            $currentOrders = TrendyolHelper::getOrders($user, $page,$request->get('order_status'));
+            $currentOrders = TrendyolHelper::getOrdersByUser($user, $page,$request->get('order_status'));
 
             if (!empty($currentOrders)) {
                 $orders = array_merge($orders, $currentOrders);
@@ -117,5 +118,55 @@ class OrderController extends Controller
         return response()->json([
             'video_url' => $videoUrl
         ]);
+    }
+
+    public function fetchOrderCron()
+    {
+        User::with('stores')->get()->each(function ($user) {
+            $user->stores->each(function ($store) use ($user) {
+                $orders = [];
+                $page = 0;
+
+                do {
+                    $currentOrders = TrendyolHelper::getOrdersByStore($store, $page);
+
+                    if (!empty($currentOrders)) {
+                        $orders = array_merge($orders, $currentOrders);
+                        $page++;
+                    } else {
+                        break;
+                    }
+                } while (true);
+
+                try {
+                    DB::beginTransaction();
+
+                    Order::where('user_id', $user->id)->where('store_id', $store->id)->delete();
+                    foreach ($orders as $order) {
+                        Order::create([
+                            'user_id' => $user->id,
+                            'store_id' => $store->id,
+                            'customer_name' => $order?->shipmentAddress?->fullName ?? '',
+                            'address' => $order->shipmentAddress?->fullAddress ?? '',
+                            'order_id' => $order?->id,
+                            'cargo_tracking_number' => $order?->cargoTrackingNumber ?? '',
+                            'cargo_service_provider' => $order?->cargoProviderName ?? '',
+                            'lines' => json_encode($order?->lines),
+                            'order_date' => date('Y-m-d H:i:s', $order?->orderDate / 1000),
+                            'status' => $order->status,
+                            'total_price' => $order->totalPrice,
+                        ]);
+                    }
+                    DB::commit();
+
+                    Cache::put('order_fetch_date_' . $user->id . '_' . $store->id, now()->toDateTimeString(), 1440 * 2);
+                } catch (Exception $exception) {
+                    DB::rollBack();
+                    Log::error("Error fetching orders for user {$user->id} and store {$store->id}: " . $exception->getMessage());
+                }
+            });
+        });
+
+        return response()->json(['status' => 'Orders fetched successfully']);
     }
 }

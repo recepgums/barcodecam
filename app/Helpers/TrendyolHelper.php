@@ -3,6 +3,7 @@
 namespace App\Helpers;
 
 use App\Models\Product;
+use App\Models\Store;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class TrendyolHelper
 {
-    public static function getOrders(User $user, $page, $orderStatus = 'Created')
+    public static function getOrdersByUser(User $user, $page, $orderStatus = 'Created')
     {
         $defaultStore = $user->stores()->defaultStore()->first();
 
@@ -60,5 +61,27 @@ class TrendyolHelper
                 ]
             );
         });
+    }
+
+    public static function getOrdersByStore(Store $store, $page, $orderStatus = 'Created')
+    {
+        $queryString = 'orderByField=PackageLastModifiedDate&orderByDirection=DESC&size=200&page=' . $page;
+        if ($orderStatus) {
+            $queryString .= '&status=' . $orderStatus;
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Basic ' . $store->token
+        ])->get('https://api.trendyol.com/sapigw/suppliers/' . $store->supplier_id . '/orders?', $queryString);
+
+        $responseContent = $response->body();
+        $decodedResponse = json_decode($responseContent);
+
+        if (isset($decodedResponse->content)) {
+            return $decodedResponse->content;
+        } else {
+            Log::error('Invalid response received from Trendyol API', ['store' => $store,'response' => $responseContent]);
+            return [];
+        }
     }
 }
