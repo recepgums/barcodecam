@@ -33,6 +33,7 @@ class TrendyolHelper
         $defaultStore = $user->stores()->defaultStore()->first();
 
         if (!$defaultStore) {
+            dd('heyy');
             $defaultStore = $user->stores()->orderByDesc('created_at')->first();
             $defaultStore->update(['is_default' => true]);
         }
