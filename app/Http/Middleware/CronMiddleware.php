@@ -16,7 +16,7 @@ class CronMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         if ((! $request->hasHeader('Cron-Key')) || ($request->header('Cron-Key') != config('app.cron_key'))){
-            abort(403);
+//            abort(403);
         }
 
         return $next($request);

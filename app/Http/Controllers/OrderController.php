@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Helpers\TrendyolHelper;
 use App\Models\Order;
+use App\Models\OrderProduct;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,7 +19,7 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
-        $orders = Order::where('user_id',auth()->id())
+        $orders = Order::where('user_id', auth()->id())
             ->whereHas('media')->get();
 
         return view('orders.index', ['orders' => $orders]);
@@ -31,15 +33,15 @@ class OrderController extends Controller
 
             if ($request->get('response_type') == 'view') {
                 $products = json_decode($order?->lines);
-                $view = view('components.modal.order-detail', ['products' => $products,'order' => $order])->render();
+                $view = view('components.modal.order-detail', ['products' => $products, 'order' => $order])->render();
 
-                return response()->json(['view' => $view,'order_id' => $order?->id,'video_url' => $order?->getFirstMediaUrl('videos')]);
+                return response()->json(['view' => $view, 'order_id' => $order?->id, 'video_url' => $order?->getFirstMediaUrl('videos')]);
             }
-        }catch (Exception $e) {
-            Log::error('ERROR ON GET ORDER BY TRACK ID '.$request->get('code') . "\n".
+        } catch (Exception $e) {
+            Log::error('ERROR ON GET ORDER BY TRACK ID ' . $request->get('code') . "\n" .
                 json_encode($order) . "....." .
-                $e->getMessage().$e->getLine().$e->getFile());
-            dd($e->getMessage().$e->getLine().$e->getFile());
+                $e->getMessage() . $e->getLine() . $e->getFile());
+            dd($e->getMessage() . $e->getLine() . $e->getFile());
             return response()->json(['data' => $order]);
         }
 
@@ -54,7 +56,7 @@ class OrderController extends Controller
         $defaultStore = $user->stores()->defaultStore()->first();
 
         do {
-            $currentOrders = TrendyolHelper::getOrdersByUser($user, $page,$request->get('order_status'));
+            $currentOrders = TrendyolHelper::getOrdersByUser($user, $page, $request->get('order_status'));
 
             if (!empty($currentOrders)) {
                 $orders = array_merge($orders, $currentOrders);
@@ -67,10 +69,11 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
-            Order::where('user_id', auth()->id())->delete();
             foreach ($orders as $order) {
-                Order::create([
-                    'user_id' => auth()->id(),
+                $orderRecord = Order::firstOrCreate([
+                    'order_id' => $order?->id,
+                ],[
+                    'user_id' => $user->id,
                     'store_id' => $defaultStore?->id,
                     'customer_name' => $order?->shipmentAddress?->fullName ?? '',
                     'address' => $order->shipmentAddress?->fullAddress ?? '',
@@ -85,7 +88,7 @@ class OrderController extends Controller
             }
             DB::commit();
 
-            Cache::put('order_fetch_date_' . auth()->id(),now()->toDateTimeString(),1440 * 2);
+            Cache::put('order_fetch_date_' . auth()->id(), now()->toDateTimeString(), 1440 * 2);
         } catch (Exception $exception) {
             DB::rollBack();
             return redirect()->back()->with('error', $exception->getMessage());
@@ -93,7 +96,7 @@ class OrderController extends Controller
         return redirect()->back()->with('success', 'Siparişler başarıyla çekildi');
     }
 
-    public function storeVideo(Order $order,Request $request)
+    public function storeVideo(Order $order, Request $request)
     {
         Db::beginTransaction();
         try {
@@ -110,7 +113,7 @@ class OrderController extends Controller
             $videoUrl = $mediaItem->getUrl();
 
             DB::commit();
-        }catch (Exception $exception){
+        } catch (Exception $exception) {
             DB::rollBack();
             dd($exception->getMessage());
         }
@@ -122,51 +125,11 @@ class OrderController extends Controller
 
     public function fetchOrderCron()
     {
-        User::with('stores')->get()->each(function ($user) {
-            $user->stores->each(function ($store) use ($user) {
-                $orders = [];
-                $page = 0;
-
-                do {
-                    $currentOrders = TrendyolHelper::getOrdersByStore($store, $page);
-
-                    if (!empty($currentOrders)) {
-                        $orders = array_merge($orders, $currentOrders);
-                        $page++;
-                    } else {
-                        break;
-                    }
-                } while (true);
-
-                try {
-                    DB::beginTransaction();
-
-                    Order::where('user_id', $user->id)->where('store_id', $store->id)->delete();
-                    foreach ($orders as $order) {
-                        Order::create([
-                            'user_id' => $user->id,
-                            'store_id' => $store->id,
-                            'customer_name' => $order?->shipmentAddress?->fullName ?? '',
-                            'address' => $order->shipmentAddress?->fullAddress ?? '',
-                            'order_id' => $order?->id,
-                            'cargo_tracking_number' => $order?->cargoTrackingNumber ?? '',
-                            'cargo_service_provider' => $order?->cargoProviderName ?? '',
-                            'lines' => json_encode($order?->lines),
-                            'order_date' => date('Y-m-d H:i:s', $order?->orderDate / 1000),
-                            'status' => $order->status,
-                            'total_price' => $order->totalPrice,
-                        ]);
-                    }
-                    DB::commit();
-
-                    Cache::put('order_fetch_date_' . $user->id . '_' . $store->id, now()->toDateTimeString(), 1440 * 2);
-                } catch (Exception $exception) {
-                    DB::rollBack();
-                    Log::error("Error fetching orders for user {$user->id} and store {$store->id}: " . $exception->getMessage());
-                }
-            });
-        });
-
+        try {
+            Artisan::call('fetch:orders');
+        }catch (Exception $exception) {
+            return response()->json(['status' => 'FAILED'. $exception->getMessage()],500);
+        }
         return response()->json(['status' => 'Orders fetched successfully']);
     }
 }
