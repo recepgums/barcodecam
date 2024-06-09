@@ -53,8 +53,23 @@ class FetchOrderForAllStoresCommand extends Command
                     $bar = $this->output->createProgressBar(count($orders));
                     $bar->start();
 
+                    $allBarcodes = [];
                     foreach ($orders as $order) {
-                        Order::firstOrCreate([
+                        foreach ($order?->lines as $product) {
+                            $allBarcodes[] = $product?->barcode;
+                        }
+                    }
+
+                    $uniqueBarcodes = array_unique($allBarcodes);
+                    $products = TrendyolHelper::getProductsByBarcodes($user, $uniqueBarcodes);
+
+                    $productMap = [];
+                    foreach ($products as $product) {
+                        $productMap[$product->barcode] = $product;
+                    }
+
+                    foreach ($orders as $order) {
+                        $orderRecordFromDatabase = Order::firstOrCreate([
                             'order_id' => $order?->id,
                         ], [
                             'user_id' => $user->id,
@@ -70,9 +85,11 @@ class FetchOrderForAllStoresCommand extends Command
                             'total_price' => $order->totalPrice,
                         ]);
 
-                        foreach ($order?->lines as $product) {
+                       /* foreach ($order?->lines as $product) {
+                            $productRecord = $productMap[$product?->barcode] ?? null;
                             TrendyolHelper::getProductByBarcode($user, $product?->barcode);
-                        }
+                        }*/
+
                         $bar->advance();
 
                         $store->update(['order_fetched_at' => now()]);

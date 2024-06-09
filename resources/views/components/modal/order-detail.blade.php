@@ -4,7 +4,7 @@
             @foreach($products as $product)
                 <div class="col-md-3 mb-1 px-1">
                     <div class="card h-100 shadow rounded">
-                        <img src="{{ \App\Helpers\TrendyolHelper::getProductByBarcode(auth()->user(), $product->barcode)->image_url }}" class="card-img-top rounded-top product-image" alt="Product Image">
+                        <img src="{{ \App\Helpers\TrendyolHelper::getProductByBarcode(auth()->user(),auth()->user()->stores()->defaultStore()->first(),$product->barcode)->image_url }}" class="card-img-top rounded-top product-image" alt="Product Image">
                         <div class="card-body text-center">
                             <h5 class="card-title">
                                 {{ Str::limit($product->productName, 40) }}
