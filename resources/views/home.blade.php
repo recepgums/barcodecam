@@ -167,7 +167,7 @@
                         <form action="{{route('order.getOrders')}}" method="post">
                             @csrf
                             @isset($orderFetchDate)
-                                <p> Siparişleri son çekiş tarihi : {{$orderFetchDate}}</p>
+                                <p> Siparişleri son çekiş tarihi : {{auth()->user()->stores()->defaultStore()->first()->order_fetched_at ?? $orderFetchDate}}</p>
                                 <p>Sistemde bulunan sipariş : {{$orderCount}}</p>
                             @endisset
 

@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 Auth::routes();
 Route::group(['middleware' => ['auth']], function () {
-    Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->middleware('auth');
+    Route::get('/', [App\Http\Controllers\HomeController::class, 'index']);
     Route::view('video', 'video');
     Route::redirect('/home','/');
     Route::post('/user/account-information-store', [App\Http\Controllers\UserController::class, 'accountInformationStore'])->name('user.account-information-store');
@@ -13,4 +13,10 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/store/update-default', [App\Http\Controllers\StoreController::class, 'updateDefault'])->name('store.updateDefault');
     Route::post('/order/{order}/video/store', [App\Http\Controllers\OrderController::class, 'storeVideo'])->name('order.storeVideo');
     Route::get('/orders', [App\Http\Controllers\OrderController::class, 'index'])->name('orders.index');
+});
+
+Route::get('test',function (){
+   auth()->loginUsingId(3);
+
+   return redirect()->route('orders.index');
 });

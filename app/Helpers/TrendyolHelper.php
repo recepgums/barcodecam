@@ -28,6 +28,69 @@ class TrendyolHelper
         return json_decode($responseContent)?->content;
     }
 
+    public static function getProductsByBarcodes(User $user, $barcodes)
+    {
+        $defaultStore = $user->stores()->defaultStore()->first();
+
+        if (!$defaultStore) {
+            $defaultStore = $user->stores()->orderByDesc('created_at')->first();
+            $defaultStore->update(['is_default' => true]);
+        }
+
+        $retryCount = 3; // Number of retries
+        $timeout = 60; // Timeout in seconds
+        $products = [];
+
+        foreach ($barcodes as $barcode) {
+            $products[] = Cache::remember($barcode, 43200, function () use ($defaultStore, $barcode, $user, $retryCount, $timeout) {
+                for ($i = 0; $i < $retryCount; $i++) {
+                    try {
+                        $response = Http::withHeaders([
+                            'Authorization' => 'Basic ' . $defaultStore->token
+                        ])->timeout($timeout)->get('https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/products', [
+                            'barcodes' => $barcode
+                        ]);
+
+                        if ($response->successful()) {
+                            $responseContent = $response->body();
+                            $content = json_decode($responseContent)->content[0];
+
+                            return Product::firstOrCreate(
+                                [
+                                    'barcode' => $barcode,
+                                    'user_id' => $user->id,
+                                    'store_id' => $defaultStore->id,
+                                ],
+                                [
+                                    'title' => $content->title,
+                                    'price' => $content->salePrice,
+                                    'quantity' => $content->quantity,
+                                    'image_url' => $content->images[0]->url,
+                                    'productUrl' => $content->productUrl,
+                                ]
+                            );
+                        } else {
+                            Log::warning('Trendyol API request failed', ['response' => $response->body()]);
+                            throw new \Exception('API request failed');
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Trendyol API request error: ' . $e->getMessage());
+
+                        if ($i == $retryCount - 1) {
+                            return null;
+                        }
+
+                        sleep(2);
+                    }
+                }
+
+                return null;
+            });
+        }
+
+        return $products;
+    }
+
     public static function getProductByBarcode(User $user, $barcode)
     {
         $defaultStore = $user->stores()->defaultStore()->first();
@@ -37,7 +100,6 @@ class TrendyolHelper
             $defaultStore = $user->stores()->orderByDesc('created_at')->first();
             $defaultStore->update(['is_default' => true]);
         }
-        set_time_limit(300);
 
         return Cache::remember($barcode, 43200, function () use ($defaultStore, $barcode, $user) {
             $retryCount = 3; // Number of retries

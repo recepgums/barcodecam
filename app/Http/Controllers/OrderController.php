@@ -93,6 +93,9 @@ class OrderController extends Controller
             DB::rollBack();
             return redirect()->back()->with('error', $exception->getMessage());
         }
+
+        $defaultStore->update(['order_fetched_at' => now()]);
+
         return redirect()->back()->with('success', 'Siparişler başarıyla çekildi');
     }
 

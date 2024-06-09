@@ -13,6 +13,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
          $schedule->command('fetch:orders')->everyFifteenMinutes();
+         $schedule->command('order:product-fetch')->everyMinute();
     }
 
     /**

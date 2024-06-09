@@ -15,6 +15,7 @@ class Store extends Model
         'supplier_id',
         'token',
         'is_default',
+        'order_fetched_at',
     ];
 
     public function user()

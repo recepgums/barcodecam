@@ -35,7 +35,6 @@ class FetchOrderForAllStoresCommand extends Command
         User::with('stores')->get()->each(function ($user) {
             $user->stores->each(function ($store) use ($user) {
                 $orders = [];
-                $orderProducts = [];
                 $page = 0;
 
                 do {
@@ -51,10 +50,13 @@ class FetchOrderForAllStoresCommand extends Command
                 try {
                     DB::beginTransaction();
 
+                    $bar = $this->output->createProgressBar(count($orders));
+                    $bar->start();
+
                     foreach ($orders as $order) {
-                       $orderRecordFromDatabase = Order::firstOrCreate([
+                        Order::firstOrCreate([
                             'order_id' => $order?->id,
-                        ],[
+                        ], [
                             'user_id' => $user->id,
                             'store_id' => $store->id,
                             'customer_name' => $order?->shipmentAddress?->fullName ?? '',
@@ -69,28 +71,20 @@ class FetchOrderForAllStoresCommand extends Command
                         ]);
 
                         foreach ($order?->lines as $product) {
-                            $productRecord = TrendyolHelper::getProductByBarcode($user, $product?->barcode);
-
-                            $orderProducts[] = [
-                                'user_id' => $user->id,
-                                'store_id' => $store->id,
-                                'order_id' => $orderRecordFromDatabase->id,
-                                'product_id' => $productRecord?->id,
-                                'original_order_id' => $order?->id,
-                                'quantity' => $product?->quantity,
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ];
+                            TrendyolHelper::getProductByBarcode($user, $product?->barcode);
                         }
-                    }
+                        $bar->advance();
 
-                    OrderProduct::insert($orderProducts);
+                        $store->update(['order_fetched_at' => now()]);
+                    }
+                    $bar->finish();
+
                     DB::commit();
 
                     Cache::put('order_fetch_date_' . $user->id . '_' . $store->id, now()->toDateTimeString(), 1440 * 2);
                 } catch (\Exception $exception) {
                     DB::rollBack();
-                    Log::error("Error fetching orders for user {$user->id} and store {$store->id}: " . $exception->getMessage());
+                    Log::error("Error fetching orders for user {$user->id} and store {$store->id}: " . $exception->getMessage() . " Line:" . $exception->getLine());
                 }
             });
         });

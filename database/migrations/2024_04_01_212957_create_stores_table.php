@@ -18,6 +18,7 @@ return new class extends Migration
             $table->integer('supplier_id')->nullable();
             $table->string('token')->nullable();
             $table->boolean('is_default')->default(0);
+            $table->dateTime('order_fetched_at')->nullable();
             $table->timestamps();
         });
     }

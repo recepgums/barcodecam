@@ -42,4 +42,9 @@ class Order extends Model  implements HasMedia
     {
         return $this->belongsTo(User::class);
     }
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
+    }
 }
