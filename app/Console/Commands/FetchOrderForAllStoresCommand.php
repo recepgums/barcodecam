@@ -48,8 +48,6 @@ class FetchOrderForAllStoresCommand extends Command
                 } while (true);
 
                 try {
-                    DB::beginTransaction();
-
                     $bar = $this->output->createProgressBar(count($orders));
                     $bar->start();
 
@@ -96,11 +94,8 @@ class FetchOrderForAllStoresCommand extends Command
                     }
                     $bar->finish();
 
-                    DB::commit();
-
                     Cache::put('order_fetch_date_' . $user->id . '_' . $store->id, now()->toDateTimeString(), 1440 * 2);
                 } catch (\Exception $exception) {
-                    DB::rollBack();
                     Log::error("Error fetching orders for user {$user->id} and store {$store->id}: " . $exception->getMessage() . " Line:" . $exception->getLine());
                 }
             });

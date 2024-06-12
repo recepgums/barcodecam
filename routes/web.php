@@ -14,9 +14,3 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/order/{order}/video/store', [App\Http\Controllers\OrderController::class, 'storeVideo'])->name('order.storeVideo');
     Route::get('/orders', [App\Http\Controllers\OrderController::class, 'index'])->name('orders.index');
 });
-
-Route::get('test',function (){
-   auth()->loginUsingId(3);
-
-   return redirect()->route('orders.index');
-});

@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Helpers\TrendyolHelper;
 use App\Models\Order;
-use App\Models\OrderProduct;
-use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -19,7 +17,7 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
-        $orders = Order::where('user_id', auth()->id())
+        $orders = Order::with(['orderProducts.product'])->where('user_id', auth()->id())
             ->whereHas('media')->get();
 
         return view('orders.index', ['orders' => $orders]);
@@ -67,7 +65,6 @@ class OrderController extends Controller
         } while (true);
 
         try {
-            DB::beginTransaction();
 
             foreach ($orders as $order) {
                 $orderRecord = Order::firstOrCreate([
@@ -86,11 +83,9 @@ class OrderController extends Controller
                     'total_price' => $order->totalPrice,
                 ]);
             }
-            DB::commit();
 
             Cache::put('order_fetch_date_' . auth()->id(), now()->toDateTimeString(), 1440 * 2);
         } catch (Exception $exception) {
-            DB::rollBack();
             return redirect()->back()->with('error', $exception->getMessage());
         }
 

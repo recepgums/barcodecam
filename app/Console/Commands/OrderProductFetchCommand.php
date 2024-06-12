@@ -31,9 +31,12 @@ class OrderProductFetchCommand extends Command
      */
     public function handle()
     {
-        Order::with(['store', 'user'])->get()->each(function ($order) {
+        $orders = Order::with(['store', 'user'])->get();
+        $bar = $this->output->createProgressBar(count($orders));
+        $bar->start();
+
+        foreach ($orders as $order) {
             try {
-                DB::beginTransaction();
                 $products = json_decode($order?->lines);
 
                 foreach ($products as $product) {
@@ -50,14 +53,13 @@ class OrderProductFetchCommand extends Command
                         'updated_at' => now(),
                     ]);
                 }
-                DB::commit();
-
-                Cache::put('order_fetch_date_' . $order->user->id . '_' . $order->store->id, now()->toDateTimeString(), 1440 * 2);
+                $bar->advance();
             } catch (\Exception $exception) {
-                DB::rollBack();
                 dd($exception);
                 Log::error("Error fetching orders for user {$order->user->id} and store {$order->store->id}: " . $exception->getMessage() . " Line:" . $exception->getLine());
             }
-        });
+        }
+        $bar->finish();
+
     }
 }

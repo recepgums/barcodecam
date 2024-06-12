@@ -47,4 +47,14 @@ class Order extends Model  implements HasMedia
     {
         return $this->belongsTo(Store::class);
     }
+
+    public function orderProducts()
+    {
+        return $this->hasMany(OrderProduct::class);
+    }
+
+    public function products()
+    {
+        return $this->hasManyThrough(Product::class, OrderProduct::class, 'order_id', 'id', 'id', 'product_id');
+    }
 }
