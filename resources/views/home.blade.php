@@ -168,20 +168,19 @@
                             @csrf
                             @isset($orderFetchDate)
                                 <p> Siparişleri son çekiş tarihi : {{auth()->user()->stores()->defaultStore()->first()->order_fetched_at ?? $orderFetchDate}}</p>
-                                <p>Sistemde bulunan sipariş : {{$orderCount}}</p>
+                                <p>Sistemde bulunan sipariş toplam : {{$orderCount}}</p>
                             @endisset
 
                             <div class="row">
                                 <div class="col-sm-8">
-                                    <select name="order_status" class="form-control">
-                                        <option value="">Hepsi</option>
-                                        @foreach(App\Models\Order::TYPES as $key => $type)
-                                            <option @if($type == \App\Models\Order::TYPES['Created']) selected @endif
-                                            value="{{$key}}">
-                                                {{$type}}
-                                            </option>
-                                        @endforeach
-                                    </select>
+                                    @foreach(App\Models\Order::TYPES as $key => $type)
+                                        <div class="form-check">
+                                            <input type="checkbox" name="status[]" class="form-check-input" id="type_{{$key}}" value="{{$key}}">
+                                            <label class="form-check-label" for="type_{{$key}}">
+                                                {{$type}} ({{ $statusCounts[$key] ?? 0 }}) <!-- Burada durum sayısını göster -->
+                                            </label>
+                                        </div>
+                                    @endforeach
                                 </div>
                                 <div class="col-sm-4">
                                     <button type="submit" class="btn btn-primary">Siparişleri Çek</button>

@@ -15,6 +15,10 @@ class TrendyolHelper
     {
         $defaultStore = $user->stores()->defaultStore()->first();
 
+        if (is_array($orderStatus)){
+            $orderStatus = trim(implode(',', $orderStatus));
+        }
+
         $queryString = 'orderByField=PackageLastModifiedDate&orderByDirection=DESC&size=200&page=' . $page;
         if ($orderStatus) {
             $queryString .= '&status=' . $orderStatus;

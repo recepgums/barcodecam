@@ -48,13 +48,14 @@ class OrderController extends Controller
 
     public function getOrders(Request $request)
     {
+        set_time_limit(300);
         $orders = [];
         $page = 0;
         $user = auth()->user();
         $defaultStore = $user->stores()->defaultStore()->first();
 
         do {
-            $currentOrders = TrendyolHelper::getOrdersByUser($user, $page, $request->get('order_status'));
+            $currentOrders = TrendyolHelper::getOrdersByUser($user, $page, $request->get('status'));
 
             if (!empty($currentOrders)) {
                 $orders = array_merge($orders, $currentOrders);
