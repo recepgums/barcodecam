@@ -167,4 +167,28 @@ class TrendyolHelper
             return [];
         }
     }
+
+    /**
+     * Siparişin kargo bilgisini Trendyol API ile günceller.
+     */
+    public static function updateOrderCargoProvider(\App\Models\Order $order, string $toCargo)
+    {
+        dd('sd');
+        $store = $order->store;
+        if (!$store) {
+            throw new \Exception('Siparişe ait mağaza bulunamadı.');
+        }
+        $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $store->supplier_id . '/orders/' . $order->order_id . '/update-cargo';
+        $payload = [
+            'cargoServiceProvider' => $toCargo,
+            'cargoTrackingNumber' => $order->cargo_tracking_number,
+        ];
+        $response = \Illuminate\Support\Facades\Http::withHeaders([
+            'Authorization' => 'Basic ' . $store->token
+        ])->post($endpoint, $payload);
+        if (!$response->successful()) {
+            throw new \Exception('Trendyol API kargo güncelleme başarısız: ' . $response->body());
+        }
+        return true;
+    }
 }

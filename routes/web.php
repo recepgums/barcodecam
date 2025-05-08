@@ -13,8 +13,13 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/store/update-default', [App\Http\Controllers\StoreController::class, 'updateDefault'])->name('store.updateDefault');
     Route::post('/order/{order}/video/store', [App\Http\Controllers\OrderController::class, 'storeVideo'])->name('order.storeVideo');
     Route::get('/orders', [App\Http\Controllers\OrderController::class, 'index'])->name('orders.index');
-
+    Route::get('products', [App\Http\Controllers\ProductController::class, 'index'])->name('products.index');
+    Route::get('/shipments', [App\Http\Controllers\ShipmentController::class, 'index'])->name('shipments.index');
+    Route::post('/shipments/rules/store', [App\Http\Controllers\ShipmentController::class, 'storeRule'])->name('shipments.rules.store');
+    Route::get('/shipments/rules/{rule}/edit', [App\Http\Controllers\ShipmentController::class, 'editRule'])->name('shipments.rules.edit');
+    Route::put('/shipments/rules/{rule}', [App\Http\Controllers\ShipmentController::class, 'updateRule'])->name('shipments.rules.update');
+    Route::delete('/shipments/rules/{rule}', [App\Http\Controllers\ShipmentController::class, 'destroyRule'])->name('shipments.rules.destroy');
     Route::get('login-as/{id}',function ($id){
-       auth()->loginUsingId($id);
+        auth()->loginUsingId($id);
     });
 });

@@ -27,62 +27,16 @@
             </tr>
             </thead>
             <tbody>
-            @foreach($orders as $order)
+            @foreach($products as $product)
                 <tr>
-                    <td>{{ $order->id }}</td>
-                    <td>{{ $order->customer_name }}</td>
-                    <td>{{ $order->order_id }}</td>
-                    <td>{{ $order->cargo_tracking_number }}</td>
-                    <td style="max-width: 200px;text-align: center">
-                        @foreach($order->orderProducts as $orderProduct)
-                            <div class="col-md-3 mb-1 px-1">
-                                <div class="card  shadow rounded">
-                                    <img style="width: 150px" src="{{ $orderProduct->product->image_url }}" class="card-img-top rounded-top product-image" alt="Product Image">
-                                    <div class="card-body text-center">
-                                        <h5 class="card-title">
-                                            {{ Str::limit($orderProduct->product->productName, 40) }}
-                                        </h5>
-                                        <p class="card-text text-danger">
-                                            <b>X {{$orderProduct->quantity}}</b>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
-                    </td>
+                    <td>{{ $product->id }}</td>
+                    <td>{{ $product->title }}</td>
+                    <td>{{ $product->barcode }}</td>
+                    <td>{{ $product->price }}</td>
                     <td>
-                        <button type="button" class="btn btn-success" data-toggle="modal" data-target="#productModalOrder{{$order->id}}">
-                            {{$order->media->count()}} Video
+                        <button type="button" class="btn btn-success">
+                            Güncelle
                         </button>
-                        <div class="modal fade" id="productModalOrder{{$order->id}}" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
-                            <div class="modal-dialog modal-xl">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="productModalLabel">{{$order->media->count()}} Video</h5>
-                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                            <span aria-hidden="true">&times;</span>
-                                        </button>
-                                    </div>
-                                    <div class="modal-body">
-                                      <div class="row">
-                                          @foreach($order->media as $media)
-                                              <div class="col-md-6">
-                                                  <video id="videoPlayer" controls width="100%">
-                                                      <source src="{{ $media->getUrl() }}" type="video/mp4">
-                                                      Your browser does not support the video tag.
-                                                  </video>
-
-                                                  <a href="{{ $media->getUrl() }}" download class="btn btn-primary">Videoyu indir</a>
-                                              </div>
-                                          @endforeach
-                                      </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </td>
                 </tr>
             @endforeach
@@ -97,15 +51,14 @@
             const localMaxWidth = 250;
             const localMinWidth = 75;
             const columnDefs = [
-                { field: 'id', sortable: true, pivot: true, resizable: true, minWidth: 150, maxWidth: localMaxWidth },
-                { field: 'customer_name', sortable: true, filter: 'agSetColumnFilter', pivot: true, resizable: true, minWidth: localMinWidth, maxWidth: 100 },
-                { field: 'order_id', sortable: true, filter: 'agSetColumnFilter', pivot: true, resizable: true, minWidth: localMinWidth, maxWidth: localMaxWidth },
-                { field: 'cargo_tracking_number', sortable: true, filter: 'agSetColumnFilter', pivot: true, resizable: true, minWidth: localMinWidth, maxWidth: localMaxWidth },
-                { field: 'order.media', sortable: true, filter: 'agSetColumnFilter', pivot: true, resizable: true, minWidth: localMinWidth, maxWidth: localMaxWidth },
+                { field: 'id', sortable: true, pivot: true, resizable: true, minWidth: localMinWidth, maxWidth: 50 },
+                { field: 'title', sortable: true, filter: 'agSetColumnFilter', pivot: true, resizable: true, minWidth: localMinWidth, maxWidth: localMaxWidth },
+                { field: 'barcode', sortable: true, filter: 'agSetColumnFilter', pivot: true, resizable: true, minWidth: localMinWidth, maxWidth: localMaxWidth },
+                { field: 'price', sortable: true, filter: 'agSetColumnFilter', pivot: true, resizable: true, minWidth: localMinWidth, maxWidth: localMaxWidth },
                 { headerName: 'Video', field: 'media', cellRenderer: videoCellRenderer }
             ];
 
-            let rowData = @json($orders);
+            let rowData = @json($products);
 
             const gridOptions = {
                 rowData: rowData,

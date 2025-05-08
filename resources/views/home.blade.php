@@ -413,25 +413,58 @@
 
 
 
+
         $('#barcodeModal').on('shown.bs.modal', function (e) {
             $('#barcodeInput').focus();
 
             var previousBarcodeValue = '';
+            var timeoutId;
+            var countdownValue = 15;
+            var countdownInterval;
+
+            function startCountdown() {
+                clearInterval(countdownInterval);
+                $('#countdownTimer').text(`Silinecek: ${countdownValue}s`).show();
+
+                countdownInterval = setInterval(() => {
+                    countdownValue--;
+                    $('#countdownTimer').text(`Silinecek: ${countdownValue}s`);
+                    if (countdownValue <= 0) {
+                        clearInterval(countdownInterval);
+                        $('#barcodeInput').val('');
+                        $('.order-summary').html('');
+                        $('#countdownTimer').hide();
+                    }
+                }, 1000);
+            }
+
+            function resetTimeout() {
+                clearTimeout(timeoutId);
+                clearInterval(countdownInterval);
+                countdownValue = 15;
+                timeoutId = setTimeout(() => {
+                    $('#barcodeInput').val('');
+                    $('.order-summary').html('');
+                    $('#countdownTimer').hide();
+                }, 15000);
+                startCountdown();
+            }
+
+            $('#barcodeInput').on('input', function () {
+                if ($(this).val().trim().length > 0) {
+                    resetTimeout();
+                }
+            });
+
             focusInterval = setInterval(function () {
                 $('#barcodeInput').focus();
                 var barcodeValue = $('#barcodeInput').val() ?? "";
                 if (barcodeValue.toLowerCase().includes("temizle") || barcodeValue.toLowerCase().includes("temızle")) {
-                    resetModal()
                     $('#barcodeInput').val('');
-                    $('.order-summary').html('')
+                    $('.order-summary').html('');
                     previousBarcodeValue = '';
-                }else if(barcodeValue.toLowerCase().includes("durdur")){
-                    toggleRecording(orderId,false)
-                    $('#barcodeInput').val(barcodeValue.replace("durdur", ""))
-                }else if(barcodeValue.toLowerCase().includes("baslat")){
-                    toggleRecording(orderId,true)
-                    $('#barcodeInput').val(barcodeValue.replace("baslat", ""))
-                }else{
+                    $('#countdownTimer').hide();
+                } else {
                     var parsedValue = parseInt(barcodeValue);
                     if (
                         !isNaN(parsedValue) &&
@@ -453,19 +486,13 @@
                                 success: function (response) {
                                     $('.order-summary').html(response?.view);
                                     orderId = response?.order_id;
-                                    $('#camera-container').css('display', 'block');
-                                    if  (response?.video_url){
-                                        $('#uploadedVideoArea').html(
-                                            `  <small style="color:red">Bu sipariş için daha önce bir video çekildi. Tekrar video çekerseniz üstüne yazacaktır!</small>
-                                            <video style="height: 150px;border-radius: 20px" controls src="${response?.video_url}"></video>`
-                                        )
-                                    }
+                                    resetTimeout(); // Her başarılı AJAX cevabında süreyi sıfırla
                                 },
                                 error: function (xhr, status, error) {
                                     console.error(xhr.responseText);
                                 },
                             });
-                        }catch (e) {
+                        } catch (e) {
                             alert('An error occurred: ' + e.message);
                         }
                     }
@@ -473,7 +500,9 @@
             }, 100);
         }).on('hide.bs.modal', function (e) {
             clearInterval(focusInterval);
-            resetModal()
+            clearInterval(countdownInterval);
+            $('#countdownTimer').hide();
+            resetModal();
         });
 
         $('#deleteValueButton').on('click', function () {
@@ -570,7 +599,7 @@
             var blob = new Blob(recordedBlobs, { type: 'video/webm' });
 
             var formData = new FormData();
-            formData.append('video', blob, 'recorded_video.webm');
+            formData.append('video', blob, 'recorded_video.mp4');
 
             let storeVideoUrl = '{{ route("order.storeVideo", ":orderId") }}';
             storeVideoUrl = storeVideoUrl.replace(':orderId', orderId);
@@ -598,11 +627,11 @@
 
                     Toastify({
                         text: "Video başarıyla yüklendi sonraki siparişe başlayabilirsiniz!",
-                        duration: 3500, // Duration in milliseconds
-                        close: true, // Show close button
-                        gravity: "top", // Position: top or bottom
-                        position: "right", // Position: left, center or right
-                        backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)", // Background color
+                        duration: 3500,
+                        close: true,
+                        gravity: "top",
+                        position: "right",
+                        backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)",
                     }).showToast();
                 },
                 error: function(xhr, status, error) {
