@@ -22,4 +22,5 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('login-as/{id}',function ($id){
         auth()->loginUsingId($id);
     });
+    Route::post('/shipments/{order}/single-update', [App\Http\Controllers\ShipmentController::class, 'singleUpdate'])->name('shipments.single-update');
 });

@@ -11,11 +11,17 @@ class Store extends Model
 
     protected $fillable = [
         'user_id',
-        'merchant_name',
+        'name',
         'supplier_id',
         'token',
         'is_default',
+        'api_key',
+        'api_secret',
         'order_fetched_at',
+    ];
+
+    protected $casts = [
+        'is_default' => 'boolean',
     ];
 
     public function user()
@@ -23,9 +29,19 @@ class Store extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function scopeDefaultStore($query)
     {
-        return $query->where('is_default',true);
+        return $query->where('is_default', true);
     }
 
     protected static function boot()

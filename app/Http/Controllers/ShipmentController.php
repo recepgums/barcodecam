@@ -65,10 +65,10 @@ class ShipmentController extends Controller
 
         try {
             DB::beginTransaction();
-
             // Kuralı kaydet
             $rule = CargoRule::create([
                 'user_id' => auth()->id(),
+                'store_id' => $request->store_id,
                 'from_cargo' => $request->from_cargo,
                 'to_cargo' => $request->to_cargo,
                 'exclude_barcodes' => $request->exclude_barcodes,
@@ -93,25 +93,6 @@ class ShipmentController extends Controller
             $updated = 0;
             $errors = [];
 
-            foreach ($affectedOrders as $order) {
-                try {
-                    $order->cargo_service_provider = $request->to_cargo;
-                    $order->save();
-                    
-                    // Trendyol API ile güncelle
-                    \App\Helpers\TrendyolHelper::updateOrderCargoProvider($order, $request->to_cargo);
-                    $updated++;
-                } catch (\Exception $e) {
-                    $errors[] = "Sipariş #{$order->order_id}: " . $e->getMessage();
-                }
-            }
-
-            // Kural durumunu güncelle
-            $rule->status = $errors ? 'failed' : 'executed';
-            $rule->result = $errors 
-                ? 'Hatalar: ' . implode(', ', $errors)
-                : "{$updated} sipariş başarıyla güncellendi.";
-            $rule->executed_at = now();
             $rule->save();
 
             DB::commit();
@@ -174,6 +155,32 @@ class ShipmentController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('shipments.index')
                 ->with('error', 'Kural silinirken bir hata oluştu: ' . $e->getMessage());
+        }
+    }
+
+    public function singleUpdate(Request $request, Order $order)
+    {
+        $request->validate([
+            'cargo_service_provider' => 'required|string',
+        ]);
+
+        $oldProvider = $order->cargo_service_provider;
+        $newProvider = $request->cargo_service_provider;
+
+        if ($oldProvider === $newProvider) {
+            return redirect()->back()->with('info', 'Kargo firması zaten seçili.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $order->cargo_service_provider = $newProvider;
+            $order->save();
+            \App\Helpers\TrendyolHelper::updateOrderCargoProvider($order, array_search($newProvider, CargoRule::CARGO_PROVIDERS));
+            DB::commit();
+            return redirect()->back()->with('success', 'Kargo firması başarıyla güncellendi ve Trendyol API ile senkronize edildi.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Güncelleme sırasında hata oluştu: ' . $e->getMessage());
         }
     }
 } 

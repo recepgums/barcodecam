@@ -28,6 +28,7 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Kullanıcı</th>
+                                        <th>Mağaza</th>
                                         <th>Kaynak Kargo</th>
                                         <th>Hedef Kargo</th>
                                         <th>Hariç Barkodlar</th>
@@ -35,7 +36,7 @@
                                         <th>Sonuç</th>
                                         <th>Uygulama Zamanı</th>
                                         <th>Oluşturulma</th>
-                                        <th>İşlemler</th>
+                                        <th>Kargo Firması</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -43,8 +44,9 @@
                                         <tr>
                                             <td>{{ $rule->id }}</td>
                                             <td>{{ $rule->user?->name ?? '-' }}</td>
-                                            <td>{{ $rule->from_cargo }}</td>
-                                            <td>{{ $rule->to_cargo }}</td>
+                                            <td>{{ $rule->store?->name ?? '-' }}</td>
+                                            <td>{{ \App\Models\CargoRule::CARGO_PROVIDERS[$rule->from_cargo] ?? '-' }}</td>
+                                            <td>{{ \App\Models\CargoRule::CARGO_PROVIDERS[$rule->to_cargo] ?? '-' }}</td>
                                             <td>{{ $rule->exclude_barcodes }}</td>
                                             <td>
                                                 @if($rule->status === 'executed')
@@ -100,25 +102,34 @@
                     <form method="POST" action="{{ route('shipments.rules.store') }}">
                         @csrf
                         <div class="row g-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label class="form-label">Mağaza</label>
+                                <select name="store_id" class="form-select" required>
+                                    <option value="">Seçiniz</option>
+                                    @foreach(auth()->user()->stores as $store)
+                                        <option value="{{ $store->id }}">{{ $store->merchant_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label">Kaynak Kargo Firması</label>
                                 <select name="from_cargo" class="form-select" required>
                                     <option value="">Seçiniz</option>
-                                    @foreach($cargoProviders as $provider)
-                                        <option value="{{ $provider }}">{{ $provider }}</option>
+                                    @foreach(\App\Models\CargoRule::CARGO_PROVIDERS as $key => $provider)
+                                        <option value="{{ $key }}">{{ $provider }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Hedef Kargo Firması</label>
                                 <select name="to_cargo" class="form-select" required>
                                     <option value="">Seçiniz</option>
-                                    @foreach($cargoProviders as $provider)
-                                        <option value="{{ $provider }}">{{ $provider }}</option>
+                                    @foreach(\App\Models\CargoRule::CARGO_PROVIDERS as $key => $provider)
+                                        <option value="{{ $key }}">{{ $provider }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Hariç Tutulacak Barkodlar</label>
                                 <input type="text" name="exclude_barcodes" class="form-control" placeholder="Barkodları virgül ile ayırın">
                             </div>
@@ -194,11 +205,10 @@
                                     <th>Müşteri Adı</th>
                                     <th>Adres</th>
                                     <th>Kargo Takip No</th>
-                                    <th>Kargo Firması</th>
                                     <th>Durum</th>
                                     <th>Toplam Tutar</th>
                                     <th>Ürünler</th>
-                                    <th>İşlemler</th>
+                                    <th>Kargo Firması</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -208,24 +218,39 @@
                                         <td>{{ $order->customer_name }}</td>
                                         <td>{{ $order->address }}</td>
                                         <td>{{ $order->cargo_tracking_number }}</td>
-                                        <td>{{ $order->cargo_service_provider }}</td>
                                         <td>{{ \App\Models\Order::TYPES[$order->status] ?? $order->status }}</td>
                                         <td>{{ number_format($order->total_price, 2) }} TL</td>
                                         <td>
-
                                             @foreach($order->orderProducts as $orderProduct)
                                                 @php $product = $orderProduct->product; @endphp
                                                 @if($product)
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <img src="{{ $product->image_url }}" alt="{{ $product->title }}" style="width:40px; height:40px; object-fit:cover; margin-right:8px;">
-                                                        <span class="me-2">x{{ $orderProduct->quantity }}</span>
-                                                        <span>{{ $product->title }}</span>
+                                                    <div class="align-items-center">
+                                                        <div class="position-relative" style="width: 50px; height: 50px; margin-right: 12px;">
+                                                            <img src="{{ $product->image_url }}" alt="{{ $product->title }}" 
+                                                                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;">
+                                                            <span class="position-absolute top-0 end-0 badge bg-primary rounded-circle" 
+                                                                  style="transform: translate(25%, -25%); font-size: 0.75rem;">
+                                                                {{ $orderProduct->quantity}}
+                                                            </span>
+                                                        </div>
+                                                        <br>
+                                                        <div class="text-truncate bg-white" style="max-width: 200px;" title="{{ $product->title }}">
+                                                          <small>{{ $product->title }}</small>
+                                                        </div>
                                                     </div>
                                                 @endif
                                             @endforeach
                                         </td>
                                         <td>
-                                            <a href="#" class="btn btn-sm btn-info">Detay</a>
+                                        <form method="POST" action="{{ route('shipments.single-update', $order) }}" class="d-flex align-items-center gap-2">
+                                                @csrf
+                                                <select name="cargo_service_provider" class="form-select form-select-sm" style="width:auto;">
+                                                    @foreach($cargoProviders as $provider)
+                                                        <option value="{{ $provider }}" {{ $order->cargo_service_provider == $provider ? 'selected' : '' }}>{{ $provider }}</option>
+                                                    @endforeach
+                                                </select>
+                                                <button type="submit" class="btn btn-sm btn-primary">Güncelle</button>
+                                            </form>
                                         </td>
                                     </tr>
                                 @endforeach

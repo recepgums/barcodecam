@@ -5,6 +5,8 @@ namespace App\Helpers;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
+use App\Models\Order;
+use App\Models\CargoRule;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -44,13 +46,21 @@ class TrendyolHelper
         $retryCount = 3; // Number of retries
         $timeout = 60; // Timeout in seconds
         $products = [];
+        if($defaultStore->api_key && $defaultStore->api_secret){
+            $basicToken = base64_encode($defaultStore->api_key.":".$defaultStore->api_secret);
+            $endpoint = 'https://apigw.trendyol.com/integration/product/sellers/' . $defaultStore->supplier_id . '/products';
+        }else{
+            $basicToken = $defaultStore->token;
+            $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/products';
+        }
 
         for ($i = 0; $i < $retryCount; $i++) {
             try {
 
                 $response = Http::withHeaders([
-                    'Authorization' => 'Basic ' . $defaultStore->token
-                ])->timeout($timeout)->get('https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/products', [
+                    'Authorization' => 'Basic ' . $basicToken
+                ])->timeout($timeout)
+                ->get($endpoint, [
                     'barcodes' => implode(',', $barcodes)
                 ]);
 
@@ -106,12 +116,20 @@ class TrendyolHelper
         return Cache::remember($barcode, 43200, function () use ($store, $barcode, $user) {
             $retryCount = 3; // Number of retries
             $timeout = 60; // Timeout in seconds
+
+            if($store->api_key && $store->api_secret){
+                $basicToken = base64_encode($store->api_key.":".$store->api_secret);
+                $endpoint = 'https://apigw.trendyol.com/integration/product/sellers/' . $store->supplier_id . '/products?barcode=' . $barcode;
+
+            }else{
+                $basicToken = $store->token;
+                $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $store->supplier_id . '/products?barcode=' . $barcode;
+            }
             for ($i = 0; $i < $retryCount; $i++) {
                 try {
                     $response = Http::withHeaders([
-                        'Authorization' => 'Basic ' . $store->token
-                    ])->timeout($timeout)->get('https://api.trendyol.com/sapigw/suppliers/' . $store->supplier_id . '/products?barcode=' . $barcode);
-
+                        'Authorization' => 'Basic ' . $basicToken
+                    ])->timeout($timeout)->get($endpoint);
                     if ($response->successful()) {
                         $responseContent = $response->body();
                         $content = json_decode($responseContent)->content[0];
@@ -152,14 +170,22 @@ class TrendyolHelper
     public static function getOrdersByStore(Store $store, $page)
     {
         $queryString = 'orderByField=PackageLastModifiedDate&orderByDirection=DESC&size=200&status=Created,Picking,Invoiced,Repack,UnPacked&page=' . $page;
+        
+        if($store->api_key && $store->api_secret){
+            $basicToken = base64_encode($store->api_key.":".$store->api_secret);
+            $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/'. $store->supplier_id .'/orders?'.$queryString;
+        }else{
+            $basicToken = $store->token;
+            $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $store->supplier_id . '/orders?'.$queryString;
+        }
 
         $response = Http::withHeaders([
-            'Authorization' => 'Basic ' . $store->token
-        ])->get('https://api.trendyol.com/sapigw/suppliers/' . $store->supplier_id . '/orders?', $queryString);
+            'Authorization' => 'Basic ' . $basicToken
+        ])->get($endpoint, $queryString);
 
         $responseContent = $response->body();
         $decodedResponse = json_decode($responseContent);
-
+        
         if (isset($decodedResponse->content)) {
             return $decodedResponse->content;
         } else {
@@ -173,19 +199,34 @@ class TrendyolHelper
      */
     public static function updateOrderCargoProvider(\App\Models\Order $order, string $toCargo)
     {
-        dd('sd');
         $store = $order->store;
         if (!$store) {
             throw new \Exception('Siparişe ait mağaza bulunamadı.');
         }
-        $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $store->supplier_id . '/orders/' . $order->order_id . '/update-cargo';
-        $payload = [
-            'cargoServiceProvider' => $toCargo,
-            'cargoTrackingNumber' => $order->cargo_tracking_number,
+
+        //check if store has api_key and api_secret and set the token variable  
+        if($store->api_key && $store->api_secret){
+            $basicToken = base64_encode($store->api_key.":".$store->api_secret);
+        }else{
+            $basicToken = $store->token;
+        }
+        // Header'a eklerken:
+        $headers = [
+            'Authorization' => 'Basic ' . $basicToken,
+            'Accept' => 'application/json',
         ];
+
+
+        $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/'. $store->supplier_id .'/shipment-packages/' . $order->order_id . '/cargo-providers';
+        $payload = [
+            'cargoProvider' => $toCargo,
+        ];
+
         $response = \Illuminate\Support\Facades\Http::withHeaders([
-            'Authorization' => 'Basic ' . $store->token
-        ])->post($endpoint, $payload);
+            'Authorization' => 'Basic ' . $basicToken,
+        ])->put($endpoint, $payload);
+
+
         if (!$response->successful()) {
             throw new \Exception('Trendyol API kargo güncelleme başarısız: ' . $response->body());
         }

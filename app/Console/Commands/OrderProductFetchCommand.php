@@ -38,10 +38,9 @@ class OrderProductFetchCommand extends Command
         foreach ($orders as $order) {
             try {
                 $products = json_decode($order?->lines);
-
                 foreach ($products as $product) {
                     $productRecord = TrendyolHelper::getProductByBarcode($order->user, $order->store, $product?->barcode);
-
+                    
                     OrderProduct::firstOrCreate([
                         'order_id' => $order->id,
                         'product_id' => $productRecord->id,
