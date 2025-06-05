@@ -173,6 +173,11 @@
 
                             <div class="row">
                                 <div class="col-sm-8">
+
+                                    <input type="checkbox" name="status[]" class="form-check-input" id="type_tumu" value="{{null}}">
+                                    <label class="form-check-label" for="type_tumu">
+                                        Tümü <!-- Burada durum sayısını göster -->
+                                    </label>
                                     @foreach(App\Models\Order::TYPES as $key => $type)
                                         <div class="form-check">
                                             <input type="checkbox" name="status[]" class="form-check-input" id="type_{{$key}}" value="{{$key}}">

@@ -18,6 +18,9 @@ class Store extends Model
         'api_key',
         'api_secret',
         'order_fetched_at',
+        'kolaygelsin_customer_id',
+        'kolaygelsin_username',
+        'kolaygelsin_password',
     ];
 
     protected $casts = [

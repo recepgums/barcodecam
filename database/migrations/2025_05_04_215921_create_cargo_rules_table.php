@@ -14,9 +14,11 @@ return new class extends Migration
         Schema::create('cargo_rules', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('store_id')->nullable()->constrained();
             $table->string('from_cargo');
             $table->string('to_cargo');
             $table->text('exclude_barcodes')->nullable();
+            $table->text('include_barcodes')->nullable();
             $table->string('status')->default('pending'); // pending, executed, failed
             $table->text('result')->nullable();
             $table->timestamp('executed_at')->nullable();

@@ -14,11 +14,23 @@
                         @method('PUT')
                         
                         <div class="mb-3">
+                            <label class="form-label">Mağaza</label>
+                            <select name="store_id" class="form-select" required>
+                                <option value="">Seçiniz</option>
+                                @foreach(auth()->user()->stores as $store)
+                                    <option value="{{ $store->id }}" {{ $rule->store_id == $store->id ? 'selected' : '' }}>
+                                        {{ $store->merchant_name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
                             <label class="form-label">Kaynak Kargo Firması</label>
                             <select name="from_cargo" class="form-select" required>
                                 <option value="">Seçiniz</option>
-                                @foreach($cargoProviders as $provider)
-                                    <option value="{{ $provider }}" {{ $rule->from_cargo == $provider ? 'selected' : '' }}>
+                                @foreach(\App\Models\CargoRule::CARGO_PROVIDERS as $key => $provider)
+                                    <option value="{{ $key }}" {{ $rule->from_cargo == $key ? 'selected' : '' }}>
                                         {{ $provider }}
                                     </option>
                                 @endforeach
@@ -29,8 +41,8 @@
                             <label class="form-label">Hedef Kargo Firması</label>
                             <select name="to_cargo" class="form-select" required>
                                 <option value="">Seçiniz</option>
-                                @foreach($cargoProviders as $provider)
-                                    <option value="{{ $provider }}" {{ $rule->to_cargo == $provider ? 'selected' : '' }}>
+                                @foreach(\App\Models\CargoRule::CARGO_PROVIDERS as $key => $provider)
+                                    <option value="{{ $key }}" {{ $rule->to_cargo == $key ? 'selected' : '' }}>
                                         {{ $provider }}
                                     </option>
                                 @endforeach
@@ -45,9 +57,17 @@
                                    value="{{ $rule->exclude_barcodes }}"
                                    placeholder="Barkodları virgül ile ayırın">
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Dahil Edilecek Barkodlar</label>
+                            <input type="text" 
+                                   name="include_barcodes" 
+                                   class="form-control" 
+                                   value="{{ $rule->include_barcodes }}"
+                                   placeholder="Barkodları virgül ile ayırın">
+                        </div>
 
                         <div class="d-flex justify-content-between">
-                            <a href="{{ route('shipments.index') }}" class="btn btn-secondary">
+                            <a href="{{ route('shipments.rules.index') }}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Geri
                             </a>
                             <button type="submit" class="btn btn-primary">

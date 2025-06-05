@@ -26,11 +26,21 @@ class TrendyolHelper
             $queryString .= '&status=' . $orderStatus;
         }
 
+        if($defaultStore->api_key && $defaultStore->api_secret){
+            $basicToken = base64_encode($defaultStore->api_key.":".$defaultStore->api_secret);
+            $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/'. $defaultStore->supplier_id .'/orders?'.$queryString;
+        }else{
+            $basicToken = $defaultStore->token;
+            $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/orders?'.$queryString;
+        }
+
+
         $response = Http::withHeaders([
-            'Authorization' => 'Basic ' . $defaultStore->token
-        ])->get('https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/orders?', $queryString);
+            'Authorization' => 'Basic ' . $basicToken
+        ])->get($endpoint);
 
         $responseContent = $response->body();
+        
         return json_decode($responseContent)?->content;
     }
 
@@ -210,12 +220,6 @@ class TrendyolHelper
         }else{
             $basicToken = $store->token;
         }
-        // Header'a eklerken:
-        $headers = [
-            'Authorization' => 'Basic ' . $basicToken,
-            'Accept' => 'application/json',
-        ];
-
 
         $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/'. $store->supplier_id .'/shipment-packages/' . $order->order_id . '/cargo-providers';
         $payload = [
@@ -225,7 +229,6 @@ class TrendyolHelper
         $response = \Illuminate\Support\Facades\Http::withHeaders([
             'Authorization' => 'Basic ' . $basicToken,
         ])->put($endpoint, $payload);
-
 
         if (!$response->successful()) {
             throw new \Exception('Trendyol API kargo güncelleme başarısız: ' . $response->body());

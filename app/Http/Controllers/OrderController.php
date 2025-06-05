@@ -17,10 +17,41 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
-        $orders = Order::with(['orderProducts.product'])->where('user_id', auth()->id())
-            ->whereHas('media')->get();
+        $query = Order::with(['orderProducts.product', 'media'])
+            ->where('user_id', auth()->id());
 
-        return view('orders.index', ['orders' => $orders]);
+        // Tarih aralığı filtresi
+        if ($request->filled('date_range')) {
+            $dates = explode(' - ', $request->date_range);
+            $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', $dates[0])->startOfDay();
+            $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', $dates[1])->endOfDay();
+            $query->whereBetween('order_date', [$startDate, $endDate]);
+        }
+
+        // Sipariş durumu filtresi
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Video durumu filtresi
+        if ($request->filled('has_video')) {
+            if ($request->has_video == '1') {
+                $query->whereHas('media');
+            } else {
+                $query->whereDoesntHave('media');
+            }
+        }
+
+        // only_videos parametresi için özel pagination
+        if ($request->filled('only_videos') && $request->only_videos == '1') {
+            $orders = $query->orderBy('created_at', 'desc')->paginate(200);
+        } else {
+            $orders = $query->orderBy('created_at', 'desc')->paginate(15);
+        }
+
+        return view('orders.index', [
+            'orders' => $orders
+        ]);
     }
     public function getByCargoTrackId(Request $request)
     {

@@ -36,6 +36,9 @@ class Order extends Model  implements HasMedia
         'order_date',
         'status',
         'total_price',
+        'zpl_barcode',
+        'zpl_barcode_type',
+        'zpl_print_count',
     ];
 
     public function user()

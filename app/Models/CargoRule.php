@@ -18,6 +18,7 @@ class CargoRule extends Model
         'from_cargo',
         'to_cargo',
         'exclude_barcodes', // virgülle ayrılmış string
+        'include_barcodes', // virgülle ayrılmış string
         'status', // pending, executed, failed
         'result', // işlem sonucu veya hata mesajı
         'executed_at',
@@ -33,7 +34,6 @@ class CargoRule extends Model
         "PTTMP"=>"PTT Marketplace",
         "CEVAMP"=>"Cevahir Marketplace",
         "KOLAYGELSINMP"=>"Kolay Gelsin Marketplace",
-        "KOLAYGELSINMP"=>"Sendeo Marketplace"
     ];
 
     protected $casts = [
