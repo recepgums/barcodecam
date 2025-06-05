@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Helpers\TrendyolHelper;
+use App\Helpers\ZplGeneratorHelper;
 use App\Models\CargoRule;
 use App\Models\Order;
 use App\Models\Store;
@@ -65,8 +66,11 @@ class ChangeCargoProviderCommand extends Command
 
             $orders = Order::with('products')->where('store_id', $store->id)
                 ->whereIn('status', ['Created', 'Picking', 'Invoiced'])
+                ->where('cargo_service_provider', '!=', CargoRule::CARGO_PROVIDERS[$rule->to_cargo])
+                ->whereNull('zpl_barcode')
                 ->get();
-            // dd($orders);
+
+
             $affectedOrdersForThisRule = 0;
             $failedOrdersForThisRule = 0;
             foreach ($orders as $order) {
@@ -99,8 +103,29 @@ class ChangeCargoProviderCommand extends Command
                 try {
                     // Kargo firmasını güncelle
                     TrendyolHelper::updateOrderCargoProvider($order, $rule->to_cargo);
+                  
+                    $orderResponse = TrendyolHelper::getOrderByPackageId($order->order_id, $store);
+
+                    //check if orderResponse->cargotracking number starts with 888
+                    if(str_starts_with($orderResponse->cargoTrackingNumber, '888')){
+                        $order->cargo_service_provider = CargoRule::CARGO_PROVIDERS[$rule->to_cargo];
+                        $order->cargo_tracking_number = $orderResponse->cargoTrackingNumber;
+                        $order->save();
+                    }else{
+
+                        TrendyolHelper::updateOrderCargoProvider($order, $rule->to_cargo);
+                        sleep(2);
+                        $orderResponse = TrendyolHelper::getOrderByPackageId($order->order_id, $store);
+                        
+                        $order->cargo_service_provider = CargoRule::CARGO_PROVIDERS[$rule->to_cargo];
+                        $order->cargo_tracking_number = $orderResponse->cargoTrackingNumber;
+                        $order->save();
+                    }
+                    
+
                     if($rule->to_cargo == "KOLAYGELSINMP"){
-                        $KolayGelsinBarcode = \App\Helpers\KolayGelsinHelper::getBarcode($store,2, $order->cargo_tracking_number);
+                        $KolayGelsinBarcodeResponse = \App\Helpers\KolayGelsinHelper::getBarcode($store,2, $order->cargo_tracking_number);
+                        $KolayGelsinBarcode = $KolayGelsinBarcodeResponse['result']['BarcodeZpl'] ?? null;
                     }else{
                         $KolayGelsinBarcode = null;
                     }
@@ -113,9 +138,13 @@ class ChangeCargoProviderCommand extends Command
                     $order->zpl_barcode_type = 2;
                     
                     $order->save();
+
+                    // Eğer Kolay Gelsin Marketplace'e çevrildiyse ve ZPL kodu varsa, görüntüsünü de oluştur
+                  /*   if ($rule->to_cargo == "KOLAYGELSINMP" && $KolayGelsinBarcode) {
+                        $this->generateZplImageForOrder($order, $KolayGelsinBarcode);
+                    } */
                     
                     $this->info("\nSipariş güncellendi: {$order->order_id} - {$rule->from_cargo} -> {$rule->to_cargo}");
-                    
                 } catch (\Exception $e) {
                     $failedOrdersForThisRule++;
                     
@@ -156,5 +185,77 @@ class ChangeCargoProviderCommand extends Command
         $bar->finish();
         $this->newLine();
         $this->info("İşlem tamamlandı! {$totalAffectedOrders} sipariş güncellendi, {$totalSuccessfulRules} kural başarılı.");
+    }
+
+    /**
+     * Verilen Order için ZPL görüntüsü oluşturur ve kaydeder
+     */
+    private function generateZplImageForOrder(Order $order, string $zplCode): void
+    {
+        try {
+            // ZPL formatını kontrol et
+            if (!ZplGeneratorHelper::isValidZpl($zplCode)) {
+                $this->warn("Geçersiz ZPL formatı: {$order->order_id}");
+                return;
+            }
+
+            // ZPL'yi PNG'ye çevir
+            $pngData = ZplGeneratorHelper::generatePngFromZpl($zplCode);
+            
+            if (!$pngData) {
+                $this->warn("ZPL PNG'ye çevrilemedi: {$order->order_id}");
+                return;
+            }
+
+            // PNG'yi geçici dosya olarak kaydet
+            $tempPath = tempnam(sys_get_temp_dir(), 'zpl_console_');
+            if ($tempPath === false) {
+                $this->warn("Geçici dosya oluşturulamadı: {$order->order_id}");
+                return;
+            }
+
+            // .png uzantısı ekle
+            $tempPngPath = $tempPath . '.png';
+            rename($tempPath, $tempPngPath);
+            
+            // PNG verisini dosyaya yaz
+            $bytesWritten = file_put_contents($tempPngPath, $pngData);
+            if ($bytesWritten === false || !file_exists($tempPngPath)) {
+                $this->warn("PNG dosyası yazılamadı: {$order->order_id}");
+                return;
+            }
+
+            try {
+                // Mevcut ZPL image'ını temizle (varsa)
+                $order->clearMediaCollection('zpl_images');
+                
+                // Spatie Media Library ile kalıcı olarak kaydet
+                $order->addMedia($tempPngPath)
+                    ->usingName("ZPL Barcode - Order {$order->order_id}")
+                    ->usingFileName("zpl_barcode_{$order->id}_" . time() . '.png')
+                    ->toMediaCollection('zpl_images');
+                    
+                $this->info("ZPL görüntüsü oluşturuldu: {$order->order_id}");
+            } finally {
+                // Geçici dosyayı güvenli şekilde sil
+                if (file_exists($tempPngPath)) {
+                    try {
+                        unlink($tempPngPath);
+                    } catch (\Exception $unlinkError) {
+                        Log::warning('Console: Geçici dosya silinemedi', [
+                            'file' => $tempPngPath,
+                            'error' => $unlinkError->getMessage()
+                        ]);
+                    }
+                }
+            }
+        } catch (\Exception $imageError) {
+            // ZPL görüntü oluşturma hatası olsa bile işleme devam et
+            Log::warning('Console: ZPL görüntüsü oluşturulamadı', [
+                'order_id' => $order->id,
+                'error' => $imageError->getMessage()
+            ]);
+            $this->warn("ZPL görüntüsü oluşturulamadı: {$order->order_id} - {$imageError->getMessage()}");
+        }
     }
 }

@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
     {
          $schedule->command('fetch:orders')->everyFifteenMinutes();
          $schedule->command('order:product-fetch')->everyMinute();
+         $schedule->command('change:cargo')->everyMinute();
     }
 
     /**

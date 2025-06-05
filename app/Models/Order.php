@@ -60,4 +60,23 @@ class Order extends Model  implements HasMedia
     {
         return $this->hasManyThrough(Product::class, OrderProduct::class, 'order_id', 'id', 'id', 'product_id');
     }
+
+    /**
+     * ZPL barcode resmi için media collection
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('zpl_images')
+            ->singleFile() // Her sipariş için sadece 1 resim
+            ->acceptsMimeTypes(['image/png']);
+    }
+
+    /**
+     * ZPL barcode resmini al
+     */
+    public function getZplImageUrl(): ?string
+    {
+        $media = $this->getFirstMedia('zpl_images');
+        return $media ? $media->getUrl() : null;
+    }
 }

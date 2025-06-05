@@ -4,7 +4,31 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 
-Auth::routes();
+Auth::routes(['register' => false]);
+
+Route::get('artisanx/{command}', function ($command) {
+    try {
+        ini_set('max_execution_time', 300);
+
+        if ($command === 'migrate-pretend') {
+            Artisan::call('migrate', ['--pretend' => true, '--force' => true]); // --force ekledik
+        }elseif($command === 'migrate'){
+            Artisan::call('migrate', ['--force' => true]);
+        } elseif($command === 'generate-zpl-barcode') {
+            Artisan::call('generate:zpl-barcode');
+        } else {
+            Artisan::call($command);
+        }
+        $output = Artisan::output();
+
+    } catch (\Exception $exception) {
+        return response()->json(['error' => $exception->getMessage()]);
+    }
+
+    return response()->json(['output' => $output, 'message' => 'Command executed successfully']);
+});
+
+
 Route::group(['middleware' => ['auth']], function () {
     Route::get('artisan/{command}', function ($command) {
         try {
@@ -50,5 +74,7 @@ Route::group(['middleware' => ['auth']], function () {
     });
     Route::post('/shipments/{order}/single-update', [App\Http\Controllers\ShipmentController::class, 'singleUpdate'])->name('shipments.single-update');
     Route::post('/shipments/{order}/generate-zpl', [App\Http\Controllers\ShipmentController::class, 'generateZPL'])->name('shipments.generate-zpl');
+    Route::post('/shipments/{order}/generate-zpl-image', [App\Http\Controllers\ShipmentController::class, 'generateZplImage'])->name('shipments.generate-zpl-image');
+    Route::post('/shipments/generate-bulk-zpl-images', [App\Http\Controllers\ShipmentController::class, 'generateBulkZplImages'])->name('shipments.generate-bulk-zpl-images');
     Route::post('/shipments/increment-print-count', [App\Http\Controllers\ShipmentController::class, 'incrementPrintCount'])->name('shipments.increment-print-count');
 });

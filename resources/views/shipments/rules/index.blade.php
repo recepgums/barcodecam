@@ -15,6 +15,61 @@
         <div class="alert alert-warning">{{ session('warning') }}</div>
     @endif
 
+    <!-- Dinamik Kural Ekleme Formu -->
+    <div class="row justify-content-center mb-4 mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Kargo Kuralı Ekle</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ route('shipments.rules.store') }}">
+                        @csrf
+                        <div class="row g-3">
+                            <div class="col-md-2">
+                                <label class="form-label">Mağaza</label>
+                                <select name="store_id" class="form-select" required>
+                                    <option value="">Seçiniz</option>
+                                    @foreach(auth()->user()->stores as $store)
+                                        <option value="{{ $store->id }}">{{ $store->merchant_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Kaynak Kargo Firması</label>
+                                <select name="from_cargo" class="form-select" required>
+                                    <option value="">Seçiniz</option>
+                                    @foreach(\App\Models\CargoRule::CARGO_PROVIDERS as $key => $provider)
+                                        <option value="{{ $key }}">{{ $provider }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Hedef Kargo Firması</label>
+                                <select name="to_cargo" class="form-select" required>
+                                    <option value="">Seçiniz</option>
+                                    @foreach(\App\Models\CargoRule::CARGO_PROVIDERS as $key => $provider)
+                                        <option value="{{ $key }}">{{ $provider }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Hariç Tutulacak Barkodlar</label>
+                                <input type="text" name="exclude_barcodes" class="form-control" placeholder="Barkodları virgül ile ayırın">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Dahil Edilecek Barkodlar</label>
+                                <input type="text" name="include_barcodes" class="form-control" placeholder="Barkodları virgül ile ayırın">
+                            </div>
+                            <div class="col-md-2 pt-4">
+                                <button type="submit" class="btn btn-success">Kuralı Ekle</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Kargo Kuralları Listesi -->
     <div class="row">
         <div class="col-md-12">
@@ -105,60 +160,5 @@
         </div>
     </div>
 
-    <!-- Dinamik Kural Ekleme Formu -->
-    <div class="row justify-content-center mb-4 mt-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Kargo Kuralı Ekle</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ route('shipments.rules.store') }}">
-                        @csrf
-                        <div class="row g-3">
-                            <div class="col-md-2">
-                                <label class="form-label">Mağaza</label>
-                                <select name="store_id" class="form-select" required>
-                                    <option value="">Seçiniz</option>
-                                    @foreach(auth()->user()->stores as $store)
-                                        <option value="{{ $store->id }}">{{ $store->merchant_name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Kaynak Kargo Firması</label>
-                                <select name="from_cargo" class="form-select" required>
-                                    <option value="">Seçiniz</option>
-                                    @foreach(\App\Models\CargoRule::CARGO_PROVIDERS as $key => $provider)
-                                        <option value="{{ $key }}">{{ $provider }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Hedef Kargo Firması</label>
-                                <select name="to_cargo" class="form-select" required>
-                                    <option value="">Seçiniz</option>
-                                    @foreach(\App\Models\CargoRule::CARGO_PROVIDERS as $key => $provider)
-                                        <option value="{{ $key }}">{{ $provider }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Hariç Tutulacak Barkodlar</label>
-                                <input type="text" name="exclude_barcodes" class="form-control" placeholder="Barkodları virgül ile ayırın">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Dahil Edilecek Barkodlar</label>
-                                <input type="text" name="include_barcodes" class="form-control" placeholder="Barkodları virgül ile ayırın">
-                            </div>
-                            <div class="col-md-2 pt-4">
-                                <button type="submit" class="btn btn-success">Kuralı Ekle</button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 @endsection 

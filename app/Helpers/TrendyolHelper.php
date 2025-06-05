@@ -44,6 +44,25 @@ class TrendyolHelper
         return json_decode($responseContent)?->content;
     }
 
+    public static function getOrderByPackageId($packageId, $defaultStore)
+    {
+        if($defaultStore->api_key && $defaultStore->api_secret){
+            $basicToken = base64_encode($defaultStore->api_key.":".$defaultStore->api_secret);
+            $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/'. $defaultStore->supplier_id .'/orders?packageId='.$packageId;
+        }else{
+            $basicToken = $defaultStore->token;
+            $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/orders?packageId='.$packageId;
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Basic ' . $basicToken
+        ])->get($endpoint);
+
+        $responseContent = $response->body();
+        
+        return json_decode($responseContent)?->content[0];
+    }
+
     public static function getProductsByBarcodes(User $user, $barcodes)
     {
         $defaultStore = $user->stores()->defaultStore()->first();

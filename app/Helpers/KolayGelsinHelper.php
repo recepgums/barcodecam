@@ -39,6 +39,9 @@ class KolayGelsinHelper
             'referenceNo' => $referenceNo
         ]);
 
+        if($response->json()['StatusCode'] != 200){
+            dd($response->json(),self::login($store),$barcodeLabelType,$referenceNo);
+        }
         if($response->status() == 401){
             self::login($store);
             return self::getBarcode($store, $barcodeLabelType, $referenceNo);
