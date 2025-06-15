@@ -8,7 +8,7 @@ use Illuminate\Http\Client\RequestException;
 
 class ZplGeneratorHelper
 {
-    private const LABELARY_API_URL = 'https://api.labelary.com/v1/printers/8dpmm/labels/4x4/0/';
+    private const LABELARY_API_URL = 'https://api.labelary.com/v1/printers/8dpmm/labels/6x4/0/';
     
     /**
      * ZPL kodunu PNG görüntüsüne çevirir

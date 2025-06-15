@@ -111,6 +111,7 @@ class OrderController extends Controller
                     'cargo_service_provider' => $order?->cargoProviderName ?? '',
                     'lines' => json_encode($order?->lines),
                     'order_date' => date('Y-m-d H:i:s', $order?->orderDate / 1000),
+                    'agreed_delivery_date' => $order?->agreedDeliveryDate ? date('Y-m-d H:i:s', $order?->agreedDeliveryDate / 1000) : null,
                     'status' => $order->status,
                     'total_price' => $order->totalPrice,
                 ]);
@@ -161,5 +162,69 @@ class OrderController extends Controller
             return response()->json(['status' => 'FAILED'. $exception->getMessage()],500);
         }
         return response()->json(['status' => 'Orders fetched successfully']);
+    }
+
+    /**
+     * Seçili siparişleri işleme alındı durumuna günceller
+     */
+    public function updateToProcess(Request $request)
+    {
+        $request->validate([
+            'order_ids' => 'required|array',
+            'order_ids.*' => 'required|integer|exists:orders,id'
+        ]);
+
+        $orderIds = $request->order_ids;
+        $successCount = 0;
+        $errorCount = 0;
+        $errors = [];
+        
+        foreach($orderIds as $orderId){
+            try {
+                $order = Order::find($orderId);
+                if (!$order) {
+                    $errors[] = "Sipariş ID {$orderId} bulunamadı";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Lines verisini parse et
+                $linesData = json_decode($order->lines, true);
+                if (empty($linesData)) {
+                    $errors[] = "Sipariş {$order->order_id}: Lines verisi bulunamadı";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Trendyol API formatına çevir
+                $formattedLines = [];
+                foreach ($linesData as $line) {
+                    $formattedLines[] = [
+                        'lineId' => (int)$line['id'], // long olarak gönder
+                        'quantity' => (int)$line['quantity'] // int olarak gönder
+                    ];
+                }
+                
+                // API isteği gönder
+                $response = TrendyolHelper::updateOrderPackageStatus($order, 'Picking', $formattedLines);
+                
+                // Başarılı ise local database'i de güncelle (Order.php const'taki değer)
+                $order->update(['status' => 'Picking']);
+                $successCount++;
+                
+            } catch (\Exception $e) {
+                $orderIdForError = isset($order) ? $order->order_id : $orderId;
+                $errors[] = "Sipariş {$orderIdForError}: " . $e->getMessage();
+                $errorCount++;
+            }
+        }
+
+        return response()->json([
+            'success' => $successCount > 0,
+            'message' => "İşlem tamamlandı. Başarılı: {$successCount}, Hatalı: {$errorCount}",
+            'success_count' => $successCount,
+            'error_count' => $errorCount,
+            'errors' => $errors
+        ]);
     }
 }

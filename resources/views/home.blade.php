@@ -227,9 +227,24 @@
                                     </button>
                                 </div>
                                 <div class="modal-body">
+                                    <p>Tercihen otomatik olarak bir sonraki siparişe geçmesi için süreleri
+                                        ayarlayabilirsiniz</p>
+                                    <p>Girdiğiniz süre sonunda video bitecek ve yeni sipariş için barkod okutmaya hazır
+                                        hale gelecek</p>
+
+                                    <!-- Countdown input -->
+                                    <div class="form-group">
+                                        <label for="countdownInput">Video uzunluğu (saniye):</label>
+                                        <input type="number" class="form-control" id="countdownInput"
+                                               placeholder="Saniye girin">
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary" id="startButton">Başlat</button>
+                                    <button type="submit" class="btn btn-danger d-none" id="finishButton">Bitir</button>
+                                    <br>
                                     <div class="row text-center">
                                         <div class="col-sm-6">
-                                            <div id="scanner-container" class="row"></div>
+                                            <div id="scanner-container"></div>
                                         </div>
                                         <div class="col-sm-6">
                                             <div id="html-result"></div>
@@ -238,7 +253,6 @@
                                 </div>
                                 <div class="modal-footer">
                                     <div class="order-summary"></div>
-{{--                                    <button type="button" class="btn btn-success" id="startVideoButton">Video Başlat</button>--}}
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Kapat</button>
                                 </div>
                             </div>
@@ -247,59 +261,67 @@
 
                     <div class="modal fade" id="barcodeModal" tabindex="-1" role="dialog"
                          aria-labelledby="barcodeModalLabel" aria-hidden="true">
-                        <div class="modal-dialog  modal-xl" style="max-width: 1200px;!important;" role="document">
+                          <div class="modal-dialog  modal-xl" style="max-width: 1200px;!important;" role="document">
                             <div class="modal-content">
                                 <div class="modal-body">
+                                    <p>Barkodu okuttuğunuz anda video kaydı başlayacaktır</p>
                                     <input type="text" name="barcode" class="form-control" id="barcodeInput">
-                                    <div class="row pt-2"  id="helperBarcodeImages">
-                                        <div class="col-sm-3 text-center">
-                                            <div class="row">
-                                                <div class="col-md-12">
-                                                    <button type="button" class="btn" id="deleteValueButton">
-                                                        <img src="{{asset('images/barcode/temizle_barcode.png')}}">
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-sm-6 text-center">
-                                            <div id="camera-container"  style="display: none">
-                                                <div class="row">
-                                                    <div class="col-md-6 text-center">
-                                                        <video id="gum" style="height: 200px;margin-top: 10px;border-radius: 20px" autoplay muted playsinline></video>
-{{--                                                        <video id="recorded" style="height: 250px;width: 200px" autoplay loop playsinline></video>--}}
-                                                        <div class="col-md-12">
-                                                            <div id="timer">00:00</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-6" id="uploadedVideoArea">
+<small id="countdownTimer" style="display: none; color: red; margin-left: 10px;"></small>
 
-                                                    </div>
-                                                    <div id="loadingDiv" class="d-none text-center">
-                                                        <div class="loader"></div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                    <div class="row" id="helperBarcodeImages">
+                                        <div class="col-sm-4">
                                         </div>
-                                        <div class="col-sm-3 text-center">
-                                            <div class="row">
-                                                <strong style="text-align: center;color:#0a53be">Video Kaydını</strong>
-                                                <div class="col-md-12">
-                                                    <button type="button" class="btn" id="startVideoButton">
-                                                        <img src="{{asset('images/barcode/baslat_barcode.png')}}">
-                                                    </button>
-                                                </div>
-                                                <div class="col-md-12">
-                                                    <button type="button" class="btn" id="stopVideoButton">
-                                                        <img src="{{asset('images/barcode/kaydet_barcode.png')}}">
-                                                    </button>
-                                                </div>
-                                            </div>
+                                        <div class="col-sm-4 text-center">
+                                            <button type="button" class="btn" id="deleteValueButton">
+                                                <img src="{{asset('images/barcode/temizle_barcode.png')}}">
+                                            </button>
+                                            <input type="checkbox" id="toggleBarcodeImages">
+
                                         </div>
+                                        <div class="col-sm-4"></div>
+                                        {{--
+                                        <div class="col-4">
+                                            <button type="button" class="btn">
+                                                <img src="{{asset('images/barcode/baslat_barcode.png')}}">
+                                            </button>
+                                        </div>
+                                        <div class="col-4">
+                                            <button type="button" class="btn">
+                                                <img src="{{asset('images/barcode/durdur_barcode.png')}}">
+                                            </button>
+                                        </div>--}}
                                     </div>
                                     <div class="order-summary"></div>
                                 </div>
                                 <div class="modal-footer">
-                                    Footer
+                                    <div class="container">
+                                        <div class="row justify-content-center mb-3">
+                                            <div class="col-md-4"></div>
+                                            <div class="col-md-4">
+                                                <button class="btn btn-success" id="countdownButton"
+                                                        style="display: none">Video başlatılıyor
+                                                </button>
+
+                                                <button class="btn btn-danger" id="cancelCountdownButton"
+                                                        style="display: none">Bekle
+                                                </button>
+                                                <button class="btn btn-danger" id="finishVideoButton"
+                                                        style="display: none">Videoyu bitir
+                                                </button>
+                                            </div>
+                                            <div class="col-md-4"></div>
+                                        </div>
+                                        <div class="row text-center">
+                                            <video style="display: none" id="videoElement" width="640" height="480" autoplay></video>
+                                            <div id="loadingDiv" class="d-none text-center">
+                                                <div class="loader"></div>
+                                            </div>
+
+                                            <div id="playRecentVideo">
+
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -362,6 +384,16 @@
             Quagga.start();
         });
 
+        document.getElementById('startButton').addEventListener('click', function () {
+            Quagga.start();
+            $('#startButton').addClass('d-none');
+            $('#finishButton').removeClass('d-none');
+        });
+
+        document.getElementById('finishButton').addEventListener('click', function () {
+            $('#finishButton').addClass('d-none');
+            $('#startButton').removeClass('d-none');
+        });
         var isRequestSent = false;
 
         Quagga.onDetected(function (result) {
@@ -379,8 +411,21 @@
                         _token: '{{ csrf_token() }}'
                     },
                     success: function (response) {
-                        $('#html-result').html(response?.view);
-                        orderId = response?.order_id
+                        console.log(response);
+                        $('.order-summary').html(response?.view);
+
+/*
+                        $('#countdownButton').show().click(function () {
+                            // startVideoRecording(response?.order_id)
+                        });
+
+                        $('#cancelCountdownButton').show().click(function () {
+                            clearInterval(countdownInterval);
+                            $('#countdownButton').text('Video kaydına başla');
+                            $(this).hide();
+                        });*/
+
+                        // startCountdown();
                     },
                     error: function (xhr, status, error) {
                         console.error(xhr.responseText);
@@ -394,6 +439,31 @@
                 document.getElementById('results-container').innerHTML = 'Barcode okundu: ' + code;
             }
         });
+
+
+        Quagga.onProcessed(function (result) {
+            var drawingCtx = Quagga.canvas.ctx.overlay,
+                drawingCanvas = Quagga.canvas.dom.overlay;
+
+            if (result) {
+                if (result.boxes) {
+                    drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
+                    result.boxes.filter(function (box) {
+                        return box !== result.box;
+                    }).forEach(function (box) {
+                        Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
+                    });
+                }
+
+                if (result.box) {
+                    Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
+                }
+
+                if (result.codeResult && result.codeResult.code) {
+                    Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
+                }
+            }
+        });
     </script>
 
     <script>
@@ -401,119 +471,278 @@
         var countdownInterval;
         var orderId = null;
         var secondsLeft = countdownDuration;
-        var focusInterval;
-        var isRequestSent = false;
 
+        function startCountdown() {
+            updateCountdownLabel(secondsLeft);
+            countdownInterval = setInterval(function () {
+                secondsLeft--;
+                updateCountdownLabel(secondsLeft);
+                if (secondsLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    startVideoRecording(orderId)
+                }
+            }, 1000);
+        }
 
+        function updateCountdownLabel(seconds) {
+            $('#countdownButton').text('Video başlatılıyor (' + seconds + ')');
+        }
         function resetModal() {
             $('#barcodeInput').val('')
             $('#countdownInput').val('')
             $('.order-summary').html('')
             clearInterval(countdownInterval);
+            $('#countdownButton').hide();
+            $('#cancelCountdownButton').hide();
             $('#finishVideoButton').hide();
-            $('#camera-container').hide();
-            resetTime()
+            $('#videoElement').hide();
             secondsLeft = 5
         }
 
+        function startVideoRecording(orderId) {
+            $('#countdownButton').hide();
+            $('#cancelCountdownButton').hide();
+            $('#finishVideoButton').show();
+            $('#videoElement').show();
 
+            navigator.mediaDevices.getUserMedia({video: true})
+                .then(function (stream) {
+                    var videoElement = document.getElementById('videoElement');
+                    videoElement.srcObject = stream;
 
+                    var mediaRecorder = new MediaRecorder(stream);
+                    var chunks = [];
 
-        $('#barcodeModal').on('shown.bs.modal', function (e) {
-            $('#barcodeInput').focus();
+                    mediaRecorder.ondataavailable = function (event) {
+                        chunks.push(event.data);
+                    };
 
-            var previousBarcodeValue = '';
-            var timeoutId;
-            var countdownValue = 15;
-            var countdownInterval;
+                    mediaRecorder.onstop = function () {
+                        console.log("orderId inside onstop:", orderId);
+                        var blob = new Blob(chunks, {type: 'video/webm'});
+                        sendVideoToBackend(blob,orderId);
+                    };
 
-            function startCountdown() {
-                clearInterval(countdownInterval);
-                $('#countdownTimer').text(`Silinecek: ${countdownValue}s`).show();
+                    mediaRecorder.start();
 
-                countdownInterval = setInterval(() => {
-                    countdownValue--;
-                    $('#countdownTimer').text(`Silinecek: ${countdownValue}s`);
-                    if (countdownValue <= 0) {
-                        clearInterval(countdownInterval);
-                        $('#barcodeInput').val('');
-                        $('.order-summary').html('');
-                        $('#countdownTimer').hide();
-                    }
-                }, 1000);
-            }
+                    $('#finishVideoButton').click(function () {
+                        mediaRecorder.stop();
+                    });
+                })
+                .catch(function (error) {
+                    console.error('Error accessing user media:', error);
+                });
+        }
 
-            function resetTimeout() {
-                clearTimeout(timeoutId);
-                clearInterval(countdownInterval);
-                countdownValue = 15;
-                timeoutId = setTimeout(() => {
-                    $('#barcodeInput').val('');
-                    $('.order-summary').html('');
-                    $('#countdownTimer').hide();
-                }, 15000);
-                startCountdown();
-            }
+        function sendVideoToBackend(blob, orderId) {
+            var formData = new FormData();
+            formData.append('video', blob);
+alert(orderId)
+            let storeVideoUrl = '{{ route("order.storeVideo", ":orderId") }}';
+            storeVideoUrl = storeVideoUrl.replace(':orderId', orderId);
+            var csrfToken = `{{csrf_token()}}`;
 
-            $('#barcodeInput').on('input', function () {
-                if ($(this).val().trim().length > 0) {
-                    resetTimeout();
+            // display loading
+            $('#loadingDiv').removeClass('d-none');
+            $('#videoElement').hide();
+
+            $.ajax({
+                url: storeVideoUrl,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                success: function(response) {
+                    console.log('Video successfully sent to backend:', response);
+                    // hide loading
+                    $('#loadingDiv').addClass('d-none');
+                    $('#finishVideoButton').addClass('d-none');
+                    var videoElement = $('<video controls></video>');
+                    videoElement.attr('src', response.video_url);
+                    $('#playRecentVideo').append(videoElement);
+                    $('#videoElement').hide();
+                },
+                error: function(xhr, status, error) {
+                    // hide loading
+                    $('#loadingDiv').addClass('d-none');
+                    console.error('Error sending video to backend:', error);
                 }
             });
+        }
 
-            focusInterval = setInterval(function () {
-                $('#barcodeInput').focus();
-                var barcodeValue = $('#barcodeInput').val() ?? "";
-                if (barcodeValue.toLowerCase().includes("temizle") || barcodeValue.toLowerCase().includes("temızle")) {
-                    $('#barcodeInput').val('');
-                    $('.order-summary').html('');
-                    previousBarcodeValue = '';
-                    $('#countdownTimer').hide();
-                } else {
-                    var parsedValue = parseInt(barcodeValue);
-                    if (
-                        !isNaN(parsedValue) &&
-                        Number.isInteger(parsedValue) &&
-                        (barcodeValue !== previousBarcodeValue) &&
-                        barcodeValue.length > 12
-                    ) {
-                        previousBarcodeValue = barcodeValue;
-                        try {
-                            $.ajax({
-                                url: '{{ route("order.getByCargoTrackId") }}',
-                                type: 'POST',
-                                dataType: 'json',
-                                data: {
-                                    code: barcodeValue,
-                                    response_type: 'view',
-                                    _token: '{{ csrf_token() }}'
-                                },
-                                success: function (response) {
-                                    $('.order-summary').html(response?.view);
-                                    orderId = response?.order_id;
-                                    resetTimeout(); // Her başarılı AJAX cevabında süreyi sıfırla
-                                },
-                                error: function (xhr, status, error) {
-                                    console.error(xhr.responseText);
-                                },
-                            });
-                        } catch (e) {
-                            alert('An error occurred: ' + e.message);
-                        }
-                    }
-                }
-            }, 100);
-        }).on('hide.bs.modal', function (e) {
-            clearInterval(focusInterval);
-            clearInterval(countdownInterval);
-            $('#countdownTimer').hide();
-            resetModal();
+        $('#webcamModal').on('show.bs.modal', function (e) {
+            // alert('sds')
         });
+
+        var focusInterval;
+        var isRequestSent = false;
+
+
+
+      $('#barcodeModal').on('shown.bs.modal', function (e) {
+    $('#barcodeInput').focus();
+
+    var previousBarcodeValue = '';
+    var timeoutId;
+    var countdownValue = 15;
+    var countdownInterval;
+
+    function startCountdown() {
+        clearInterval(countdownInterval);
+        $('#countdownTimer').text(`Silinecek: ${countdownValue}s`).show();
+
+        countdownInterval = setInterval(() => {
+            countdownValue--;
+            $('#countdownTimer').text(`Silinecek: ${countdownValue}s`);
+            if (countdownValue <= 0) {
+                clearInterval(countdownInterval);
+                $('#barcodeInput').val('');
+                $('.order-summary').html('');
+                $('#countdownTimer').hide();
+            }
+        }, 1000);
+    }
+
+    function resetTimeout() {
+        clearTimeout(timeoutId);
+        clearInterval(countdownInterval);
+        countdownValue = 15;
+        timeoutId = setTimeout(() => {
+            $('#barcodeInput').val('');
+            $('.order-summary').html('');
+            $('#countdownTimer').hide();
+        }, 15000);
+        startCountdown();
+    }
+
+    $('#barcodeInput').on('input', function () {
+        if ($(this).val().trim().length > 0) {
+            resetTimeout();
+        }
+    });
+
+    focusInterval = setInterval(function () {
+        $('#barcodeInput').focus();
+        var barcodeValue = $('#barcodeInput').val() ?? "";
+        if (barcodeValue.toLowerCase().includes("temizle") || barcodeValue.toLowerCase().includes("temızle")) {
+            $('#barcodeInput').val('');
+            $('.order-summary').html('');
+            previousBarcodeValue = '';
+            $('#countdownTimer').hide();
+        } else {
+            var parsedValue = parseInt(barcodeValue);
+            if (
+                !isNaN(parsedValue) &&
+                Number.isInteger(parsedValue) &&
+                (barcodeValue !== previousBarcodeValue) &&
+                barcodeValue.length > 12
+            ) {
+                previousBarcodeValue = barcodeValue;
+                try {
+                    $.ajax({
+                        url: '{{ route("order.getByCargoTrackId") }}',
+                        type: 'POST',
+                        dataType: 'json',
+                        data: {
+                            code: barcodeValue,
+                            response_type: 'view',
+                            _token: '{{ csrf_token() }}'
+                        },
+                        success: function (response) {
+                            $('.order-summary').html(response?.view);
+                            orderId = response?.order_id;
+                            resetTimeout(); // Her başarılı AJAX cevabında süreyi sıfırla
+                        },
+                        error: function (xhr, status, error) {
+                            console.error(xhr.responseText);
+                        },
+                    });
+                } catch (e) {
+                    alert('An error occurred: ' + e.message);
+                }
+            }
+        }
+    }, 100);
+}).on('hide.bs.modal', function (e) {
+    clearInterval(focusInterval);
+    clearInterval(countdownInterval);
+    $('#countdownTimer').hide();
+    resetModal();
+});
+
 
         $('#deleteValueButton').on('click', function () {
-            resetModal()
             $('#barcodeInput').val('')
         });
+
+
+        $('#toggleBarcodeImages').change(function() {
+            // Check if the checkbox is checked
+            if ($(this).is(':checked')) {
+                // If checked, hide the element with ID 'helperBarcodeImages'
+                $('#helperBarcodeImages').hide();
+            } else {
+                // If unchecked, show the element with ID 'helperBarcodeImages'
+                $('#helperBarcodeImages').show();
+            }
+        });
+
+       /* $('#barcodeInput').on('change keyup', function () {
+            if (!isRequestSent) {
+                isRequestSent = true;
+
+                // Send the AJAX request
+                $.ajax({
+                    url: '{{ route("order.getByCargoTrackId") }}',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {
+                        code: $(this).val(),
+                        response_type: 'view',
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function (response) {
+                        $('.order-summary').html(response?.view);
+                        orderId = response?.order_id;
+
+                        // Reset the flag after the AJAX request is completed
+                        isRequestSent = false;
+                    },
+                    error: function (xhr, status, error) {
+                        console.error(xhr.responseText);
+
+                        // Reset the flag even in case of an error
+                        isRequestSent = false;
+                    },
+                });
+            }
+        });*/
+
+    </script>
+
+    <script>
+        $(document).ready(function () {
+            navigator.permissions.query({name: 'camera'})
+                .then(function (permissionStatus) {
+                    if (permissionStatus.state === 'granted') {
+                    } else {
+                        // $('#cameraPermissionModal').modal('show');
+                    }
+                });
+
+            $('#grantCameraPermissionButton').click(function () {
+                navigator.mediaDevices.getUserMedia({video: true})
+                    .then(function (stream) {
+                        $('#cameraPermissionModal').modal('hide');
+                    })
+            });
+        });
+    </script>
+
+    <script>
         function selectedStoreChanged(select) {
             console.log(select, select.value)
 
@@ -533,195 +762,6 @@
                 }
             });
         }
-
-        var mediaSource = new MediaSource();
-        mediaSource.addEventListener('sourceopen', handleSourceOpen, false);
-        var mediaRecorder;
-        var recordedBlobs;
-        var sourceBuffer;
-        var gumVideo = document.querySelector('video#gum');
-        var recordedVideo = document.querySelector('video#recorded');
-        var recordButton = document.querySelector('#startVideoButton');
-        var stopButton = document.querySelector('#stopVideoButton');
-
-        $('#startVideoButton').on('click', function () {
-            toggleRecording(orderId,true)
-        });
-
-        $('#stopVideoButton').on('click', function () {
-            toggleRecording(orderId,false)
-        });
-
-        console.log('location.host:', location.host);
-        // window.isSecureContext could be used for Chrome
-        var isSecureOrigin = location.protocol === 'https:' ||
-            location.host.includes('localhost');
-        if (!isSecureOrigin) {
-            alert('getUserMedia() must be run from a secure origin: HTTPS or localhost.' +
-                '\n\nChanging protocol to HTTPS');
-            location.protocol = 'HTTPS';
-        }
-
-        var constraints = {
-            video: true
-        };
-
-        navigator.mediaDevices.getUserMedia(
-            constraints
-        ).then(
-            successCallback,
-            errorCallback
-        );
-
-        function successCallback(stream) {
-            console.log('getUserMedia() got stream: ', stream);
-            window.stream = stream;
-            gumVideo.srcObject = stream;
-        }
-
-        function errorCallback(error) {
-            console.log('navigator.getUserMedia error: ', error);
-        }
-
-        function handleSourceOpen(event) {
-            console.log('MediaSource opened');
-            sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');
-            console.log('Source buffer: ', sourceBuffer);
-        }
-
-        let previousTime = Date.now();
-
-        function handleDataAvailable(event) {
-            const timeNow = Date.now();
-            console.log(`Interval: ${timeNow - previousTime}`);
-            previousTime = timeNow;
-            if (event.data && event.data.size > 0) {
-                recordedBlobs.push(event.data);
-            }
-        }
-
-        function handleStop(event) {
-            var blob = new Blob(recordedBlobs, { type: 'video/webm' });
-
-            var formData = new FormData();
-            formData.append('video', blob, 'recorded_video.mp4');
-
-            let storeVideoUrl = '{{ route("order.storeVideo", ":orderId") }}';
-            storeVideoUrl = storeVideoUrl.replace(':orderId', orderId);
-            var csrfToken = `{{csrf_token()}}`;
-
-            $('#loadingDiv').removeClass('d-none');
-
-            $.ajax({
-                url: storeVideoUrl,
-                type: 'POST',
-                data: formData,
-                processData: false, // Don't process the data
-                contentType: false, // Don't set content type
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                success: function(response) {
-                    console.log('Video successfully sent to backend:', response);
-                    // Hide loading indicator
-                    $('#loadingDiv').addClass('d-none');
-                    $('#finishVideoButton').addClass('d-none');
-                    var videoElement = $('<video controls></video>');
-                    videoElement.attr('src', response.video_url);
-                    $('#playRecentVideo').append(videoElement);
-
-                    Toastify({
-                        text: "Video başarıyla yüklendi sonraki siparişe başlayabilirsiniz!",
-                        duration: 3500,
-                        close: true,
-                        gravity: "top",
-                        position: "right",
-                        backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)",
-                    }).showToast();
-                },
-                error: function(xhr, status, error) {
-                    // Hide loading indicator
-                    $('#loadingDiv').addClass('d-none');
-                    console.error('Error sending video to backend:', error);
-                }
-            });
-        }
-
-        function toggleRecording(orderId,isStart = true) {
-            if (isStart) {
-                startRecording();
-            } else {
-                stopRecording();
-                // playButton.disabled = false;
-            }
-        }
-
-        var timerInterval;
-        var startTime;
-
-        function startRecording() {
-            var options = {mimeType: 'video/webm;codecs=vp9', bitsPerSecond: 100000};
-            recordedBlobs = [];
-            try {
-                mediaRecorder = new MediaRecorder(window.stream, options);
-            } catch (e0) {
-                console.log('Unable to create MediaRecorder with options Object: ', options, e0);
-                try {
-                    options = {mimeType: 'video/webm;codecs=vp8', bitsPerSecond: 100000};
-                    mediaRecorder = new MediaRecorder(window.stream, options);
-                } catch (e1) {
-                    console.log('Unable to create MediaRecorder with options Object: ', options, e1);
-                    try {
-                        mediaRecorder = new MediaRecorder(window.stream);
-                    } catch (e2) {
-                        alert('MediaRecorder is not supported by this browser.');
-                        console.log('Unable to create MediaRecorder', e2);
-                        return;
-                    }
-                }
-            }
-            console.log('Created MediaRecorder', mediaRecorder, 'with options', options);
-            recordButton.disabled = true;
-            mediaRecorder.onstop = handleStop;
-            mediaRecorder.ondataavailable = handleDataAvailable;
-            mediaRecorder.start(1000);
-            console.log('MediaRecorder started', mediaRecorder);
-
-            startTimer(); // Start the timer when recording starts
-        }
-
-        function stopRecording() {
-            recordButton.disabled = false;
-            mediaRecorder.stop();
-            stopTimer(); // Stop the timer when recording stops
-        }
-
-        function resetTime() {
-            clearInterval(timerInterval); // Stop any ongoing timer
-            document.getElementById('timer').textContent = '00:00'; // Reset the displayed time
-            document.getElementById('timer').style.color = 'black'; // Reset the color to the original
-        }
-
-        function startTimer() {
-            startTime = Date.now();
-            timerInterval = setInterval(updateTimer, 1000);
-            document.getElementById('timer').style.color = 'green';
-        }
-
-        function updateTimer() {
-            var elapsedTime = Date.now() - startTime;
-            var totalSeconds = Math.floor(elapsedTime / 1000);
-            var minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-            var seconds = String(totalSeconds % 60).padStart(2, '0');
-            document.getElementById('timer').textContent = `${minutes}:${seconds}`;
-        }
-
-        function stopTimer() {
-            clearInterval(timerInterval);
-            document.getElementById('timer').style.color = 'red';
-        }
-
     </script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 
 @endsection

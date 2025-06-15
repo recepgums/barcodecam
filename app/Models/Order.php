@@ -34,11 +34,17 @@ class Order extends Model  implements HasMedia
         'cargo_service_provider',
         'lines',
         'order_date',
+        'agreed_delivery_date',
         'status',
         'total_price',
         'zpl_barcode',
         'zpl_barcode_type',
         'zpl_print_count',
+    ];
+
+    protected $casts = [
+        'total_price' => 'decimal:2',
+        'agreed_delivery_date' => 'datetime',
     ];
 
     public function user()
@@ -59,6 +65,32 @@ class Order extends Model  implements HasMedia
     public function products()
     {
         return $this->hasManyThrough(Product::class, OrderProduct::class, 'order_id', 'id', 'id', 'product_id');
+    }
+
+    /**
+     * Kargoya vermek için kalan süreyi hesapla
+     */
+    public function getRemainingDeliveryTimeAttribute()
+    {
+        if (!$this->agreed_delivery_date) {
+            return null;
+        }
+        
+        $now = now();
+        $agreedDate = \Carbon\Carbon::parse($this->agreed_delivery_date);
+        
+        if ($agreedDate->isPast()) {
+            return 'Süre doldu';
+        }
+        
+        $diff = $now->diff($agreedDate);
+        
+        // Gün, saat ve dakikayı her zaman göster
+        $days = $diff->days;
+        $hours = $diff->h;
+        $minutes = $diff->i;
+        
+        return sprintf("%d gün %d saat %02d dakika", $days, $hours, $minutes);
     }
 
     /**

@@ -64,21 +64,54 @@ class ShipmentController extends Controller
         if ($request->filled('print_status')) {
             switch ($request->print_status) {
                 case 'printed':
-                    // Yazdırılmış (print count > 0)
                     $query->where('zpl_print_count', '>', 0);
                     break;
                 case 'not_printed':
-                    // Yazdırılmamış (print count = 0 veya null)
                     $query->where(function($q) {
                         $q->where('zpl_print_count', 0)
                           ->orWhereNull('zpl_print_count');
                     });
                     break;
-                // 'all' durumunda hiçbir şey eklemeye gerek yok
             }
         }
 
-        $orders = $query->orderBy('created_at', 'desc')->paginate(10);
+        // Barkod filtresi
+        if ($request->filled('barcode')) {
+            $barcodes = is_array($request->barcode) ? array_filter($request->barcode) : [$request->barcode];
+            if (!empty($barcodes)) {
+                $query->whereHas('orderProducts.product', function($q) use ($barcodes) {
+                    $q->whereIn('barcode', $barcodes);
+                });
+            }
+        }
+
+        // Sıralama
+        switch ($request->get('sort_by')) {
+            case 'price_asc':
+                $query->orderByRaw('CAST(total_price AS DECIMAL(10,2)) ASC');
+                break;
+            case 'price_desc':
+                $query->orderByRaw('CAST(total_price AS DECIMAL(10,2)) DESC');
+                break;
+            case 'date_asc':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'date_desc':
+                $query->orderBy('created_at', 'desc');
+                break;
+            case 'delivery_time_asc':
+                $query->orderBy('agreed_delivery_date', 'asc');
+                break;
+            case 'delivery_time_desc':
+                $query->orderBy('agreed_delivery_date', 'desc');
+                break;
+            default:
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+
+        $perPage = in_array($request->get('per_page'), [10, 50, 100, 500, 1000]) ? (int)$request->get('per_page') : 10;
+        $orders = $query->paginate($perPage)->appends($request->except('page'));
 
         // Kargo firmalarını ve durumları filtre için al (sadece kullanıcının store'larından)
         $cargoProviders = Order::whereHas('store', function($q) {
@@ -91,7 +124,16 @@ class ShipmentController extends Controller
             
         $statuses = Order::TYPES;
 
-        return view('shipments.index', compact('orders', 'cargoProviders', 'statuses'));
+        // Tüm barkodları filtre için çek (ürün adı ve resmiyle birlikte)
+        $barcodeProducts = \App\Models\Product::whereHas('store', function($q) {
+            $q->where('user_id', auth()->id());
+        })
+        ->whereNotNull('barcode')
+        ->get(['barcode', 'title', 'image_url'])
+        ->unique('barcode')
+        ->values();
+
+        return view('shipments.index', compact('orders', 'cargoProviders', 'statuses', 'barcodeProducts'));
     }
 
     public function rulesIndex(Request $request)
@@ -292,11 +334,14 @@ class ShipmentController extends Controller
             $barcodeResponse = KolayGelsinHelper::getBarcode($store, 2, $order->cargo_tracking_number);
 
             if (isset($barcodeResponse['result']) && isset($barcodeResponse['result']['BarcodeZpl'])) {
-                $zplCode = $barcodeResponse['result']['BarcodeZpl'];
+                $originalZplCode = $barcodeResponse['result']['BarcodeZpl'];
+                
+                // Ürün bilgilerini ZPL'ye ekle
+                $enhancedZplCode = $this->addProductInfoToZpl($originalZplCode, $order);
                 
                 // ZPL verisini Order'a kaydet
                 $order->update([
-                    'zpl_barcode' => $zplCode
+                    'zpl_barcode' => $enhancedZplCode
                 ]);
 
                 // ZPL görüntüsü oluşturma işlemi
@@ -305,9 +350,9 @@ class ShipmentController extends Controller
                     $order->clearMediaCollection('zpl_images');
                     
                     // ZPL formatını kontrol et
-                    if (ZplGeneratorHelper::isValidZpl($zplCode ?? "")) {
+                    if (ZplGeneratorHelper::isValidZpl($enhancedZplCode ?? "")) {
                         // ZPL'yi PNG'ye çevir
-                        $pngData = ZplGeneratorHelper::generatePngFromZpl($zplCode);
+                        $pngData = ZplGeneratorHelper::generatePngFromZpl($enhancedZplCode);
                         
                         if ($pngData) {
                             // PNG'yi geçici dosya olarak kaydet
@@ -629,5 +674,129 @@ class ShipmentController extends Controller
                 'message' => 'Toplu işlem sırasında hata oluştu: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * ZPL koduna ürün bilgilerini ekler
+     */
+    private function addProductInfoToZpl(string $originalZpl, Order $order): string
+    {
+        // ZPL'nin sonundaki ^XZ'yi bul ve kaldır
+        $zplWithoutEnd = rtrim($originalZpl);
+        if (str_ends_with($zplWithoutEnd, '^XZ')) {
+            $zplWithoutEnd = substr($zplWithoutEnd, 0, -3);
+        }
+
+        // Lines verisinden ürün bilgilerini al
+        $linesData = json_decode($order->lines, true);
+        
+        if (empty($linesData)) {
+            // Ürün yoksa orijinal ZPL'yi döndür
+            return $originalZpl;
+        }
+
+        // Ürün bilgileri için ZPL kodları
+        $productZpl = '';
+        
+        // Sadece çizgi - başlık yok
+        $productZpl .= '^FO10,700^GB600,3,3,B,0^FS'; // Kalın çizgi
+        
+        $yPosition = 720; // Çizgiden hemen sonra başla
+        $lineHeight = 85; // Satır yüksekliği artırıldı (daha fazla alan)
+        // Sayfa sınırını kaldırıyoruz - tüm ürünler gösterilecek
+        
+        foreach ($linesData as $index => $productData) {
+            // Sayfa sınırı kontrolü kaldırıldı - tüm ürünler yazılacak
+            
+            // Ürün bilgilerini al
+            $productName = $productData['productName'] ?? 'Ürün Adı Yok';
+            $quantity = $productData['quantity'] ?? 1;
+            $barcode = $productData['barcode'] ?? ($productData['sku'] ?? 'Barkod Yok');
+            $productSize = $productData['productSize'] ?? '';
+            $productColor = $productData['productColor'] ?? '';
+            
+            // Birden fazla ürün varsa ayırıcı noktalı çizgi ekle (ilk ürün hariç)
+            if ($index > 0) {
+                $separatorY = $yPosition - 10;
+                $productZpl .= "^FO20,{$separatorY}^GB580,1,1,B,1^FS"; // İnce noktalı çizgi
+            }
+            
+            // Ürün adını satırlara böl (her satır maksimum 70 karakter)
+            $maxCharsPerLine = 70;
+            $productNameLines = [];
+            
+            if (strlen($productName) <= $maxCharsPerLine) {
+                // Tek satıra sığıyor
+                $productNameLines[] = $productName;
+            } else {
+                // Çok uzun, satırlara böl
+                $words = explode(' ', $productName);
+                $currentLine = '';
+                
+                foreach ($words as $word) {
+                    if (strlen($currentLine . ' ' . $word) <= $maxCharsPerLine) {
+                        $currentLine .= ($currentLine ? ' ' : '') . $word;
+                    } else {
+                        if ($currentLine) {
+                            $productNameLines[] = $currentLine;
+                            $currentLine = $word;
+                        } else {
+                            // Tek kelime çok uzunsa, zorla böl
+                            $productNameLines[] = substr($word, 0, $maxCharsPerLine - 3) . '...';
+                            $currentLine = '';
+                        }
+                    }
+                }
+                
+                if ($currentLine) {
+                    $productNameLines[] = $currentLine;
+                }
+                
+                // Maksimum 2 satır göster
+                if (count($productNameLines) > 2) {
+                    $productNameLines = array_slice($productNameLines, 0, 2);
+                    $productNameLines[1] = substr($productNameLines[1], 0, $maxCharsPerLine - 3) . '...';
+                }
+            }
+            
+            // Ürün adı satırlarını yazdır
+            $currentY = $yPosition;
+            foreach ($productNameLines as $lineIndex => $line) {
+                $productZpl .= "^FO20,{$currentY}^A0,22,22^FD{$line}^FS";
+                $currentY += 24; // Satır arası boşluk
+            }
+            
+            // İkinci kısım için Y pozisyonunu ayarla (ürün adı satır sayısına göre)
+            $secondLineY = $yPosition + (count($productNameLines) * 24) + 4;
+            
+            // ADET - çok büyük ve sol tarafta
+            $productZpl .= "^FO20,{$secondLineY}^A0,35,35^FDADET: {$quantity}^FS";
+            
+            // Barkod - sağ tarafta, büyük font
+            $productZpl .= "^FO380,{$secondLineY}^A0,28,28^FD{$barcode}^FS";
+            
+            // Renk ve ebat bilgisi - ortada, ADET ile Barkod arasında
+            $extraInfo = [];
+            if (!empty($productSize)) $extraInfo[] = $productSize;
+            if (!empty($productColor)) $extraInfo[] = $productColor;
+            
+            if (!empty($extraInfo)) {
+                $extraInfoText = implode(' | ', $extraInfo); // Pipe ile ayır
+                if (strlen($extraInfoText) > 25) {
+                    $extraInfoText = substr($extraInfoText, 0, 22) . '...';
+                }
+                // Ortada konumlandır
+                $productZpl .= "^FO180,{$secondLineY}^A0,20,20^FD{$extraInfoText}^FS";
+            }
+            
+            // Dinamik satır yüksekliği (ürün adı satır sayısına göre)
+            $dynamicLineHeight = $lineHeight + (count($productNameLines) > 1 ? 24 : 0);
+            $yPosition += $dynamicLineHeight;
+        }
+        
+        // Artık tüm ürünler gösteriliyor - "kalan ürün" kısmı kaldırıldı
+        
+        // ZPL'yi birleştir ve sonlandır
+        return $zplWithoutEnd . $productZpl . '^XZ';
     }
 } 

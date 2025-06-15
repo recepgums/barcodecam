@@ -79,6 +79,7 @@ class FetchOrderForAllStoresCommand extends Command
                             'cargo_service_provider' => $order?->cargoProviderName ?? '',
                             'lines' => json_encode($order?->lines),
                             'order_date' => date('Y-m-d H:i:s', $order?->orderDate / 1000),
+                            'agreed_delivery_date' => $order?->agreedDeliveryDate ? date('Y-m-d H:i:s', $order?->agreedDeliveryDate / 1000) : null,
                             'status' => $order->status,
                             'total_price' => $order->totalPrice,
                         ]);

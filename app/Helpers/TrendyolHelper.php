@@ -254,4 +254,48 @@ class TrendyolHelper
         }
         return true;
     }
+    
+    public static function updateOrderPackageStatus(Order $order, string $toStatus, array $lines = [])
+    {
+        $store = $order->store;
+        if (!$store) {
+            throw new \Exception('Siparişe ait mağaza bulunamadı.');
+        }
+        $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/'. $store->supplier_id .'/shipment-packages/'.$order->order_id;
+        
+        $payload = [
+            'status' => $toStatus,
+            'params' => (object)[] // Boş obje olarak gönder
+        ];
+        
+        // Lines varsa ekle
+        if (!empty($lines)) {
+            $payload['lines'] = $lines;
+        }
+        
+        if($store->api_key && $store->api_secret){
+            $basicToken = base64_encode($store->api_key.":".$store->api_secret);
+        }else{
+            $basicToken = $store->token;
+        }
+
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Basic ' . $basicToken,
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'User-Agent' => 'Laravel/TrendyolIntegration'
+        ])->put($endpoint, $payload);
+        
+        if (!$response->successful()) {
+            throw new \Exception('Trendyol API sipariş durum güncelleme başarısız: ' . $response->body());
+        }
+
+        return $response->body();
+    }
+
+    public static function updateOrderTrackingNumber(Order $order, string $toTrackingNumber)
+    {
+   
+    }
 }

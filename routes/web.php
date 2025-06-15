@@ -77,4 +77,5 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/shipments/{order}/generate-zpl-image', [App\Http\Controllers\ShipmentController::class, 'generateZplImage'])->name('shipments.generate-zpl-image');
     Route::post('/shipments/generate-bulk-zpl-images', [App\Http\Controllers\ShipmentController::class, 'generateBulkZplImages'])->name('shipments.generate-bulk-zpl-images');
     Route::post('/shipments/increment-print-count', [App\Http\Controllers\ShipmentController::class, 'incrementPrintCount'])->name('shipments.increment-print-count');
+    Route::post('/orders/update-to-process', [App\Http\Controllers\OrderController::class, 'updateToProcess'])->name('orders.update-to-process');
 });
