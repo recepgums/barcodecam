@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text('customer_name')->nullable();
             $table->longText('address')->nullable();
             $table->string('order_id')->nullable();
-            $table->string('cargo_tracking_number')->nullable()->index();
+            $table->string('cargo_tracking_number')->nullable()->unique()->index();
             $table->string('cargo_service_provider')->nullable()->comment('mng aras');
             $table->longText('lines')->nullable();
             $table->string('order_date')->nullable();

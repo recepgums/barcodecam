@@ -40,8 +40,19 @@ class TrendyolHelper
         ])->get($endpoint);
 
         $responseContent = $response->body();
+        $orders = json_decode($responseContent)?->content;
         
-        return json_decode($responseContent)?->content;
+        // CRITICAL FIX: Deep clone each order to prevent shared references
+        if ($orders) {
+            $clonedOrders = [];
+            foreach ($orders as $order) {
+                // Deep clone the entire order object
+                $clonedOrders[] = json_decode(json_encode($order), false);
+            }
+            return $clonedOrders;
+        }
+        
+        return $orders;
     }
 
     public static function getOrderByPackageId($packageId, $defaultStore)
@@ -59,8 +70,14 @@ class TrendyolHelper
         ])->get($endpoint);
 
         $responseContent = $response->body();
+        $order = json_decode($responseContent)?->content[0];
         
-        return json_decode($responseContent)?->content[0];
+        // CRITICAL FIX: Deep clone the order to prevent shared references
+        if ($order) {
+            return json_decode(json_encode($order), false);
+        }
+        
+        return $order;
     }
 
     public static function getProductsByBarcodes(User $user, $barcodes)
@@ -216,7 +233,14 @@ class TrendyolHelper
         $decodedResponse = json_decode($responseContent);
         
         if (isset($decodedResponse->content)) {
-            return $decodedResponse->content;
+            // CRITICAL FIX: Deep clone each order to prevent shared references
+            $orders = $decodedResponse->content;
+            $clonedOrders = [];
+            foreach ($orders as $order) {
+                // Deep clone the entire order object
+                $clonedOrders[] = json_decode(json_encode($order), false);
+            }
+            return $clonedOrders;
         } else {
             Log::error('Invalid response received from Trendyol API', ['store' => $store, 'response' => $responseContent]);
             return [];

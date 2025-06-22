@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            $table->text('zpl_barcode')->nullable();
+            $table->text('zpl_barcode')->unique()->nullable();
             $table->string('zpl_barcode_type')->nullable();
             $table->integer('zpl_print_count')->nullable()->default(0);
         });

@@ -553,25 +553,53 @@ class ShipmentController extends Controller
             $errorCount = 0;
             $errors = [];
 
-            // Kullanıcının siparişlerini filtrele
-            $orders = Order::whereIn('id', $orderIds)
+            // Kullanıcının siparişlerini filtrele - sadece Kolay Gelsin Marketplace olanları
+            $orders = Order::with('store')
+                ->whereIn('id', $orderIds)
                 ->whereHas('store', function($q) {
                     $q->where('user_id', auth()->id());
                 })
-               /*  ->where('cargo_service_provider', 'Kolay Gelsin Marketplace')
-                ->whereIn('status', ['Created', 'Picking', 'Invoiced']) */
-                ->whereNotNull('zpl_barcode')
+                ->where('cargo_service_provider', 'Kolay Gelsin Marketplace')
                 ->get();
 
-                if ($orders->isEmpty()) {
+            if ($orders->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Uygun sipariş bulunamadı. Siparişlerin Kolay Gelsin Marketplace kargo firmasına ait, uygun durumda ve ZPL koduna sahip olması gerekir.'
+                    'message' => 'Uygun sipariş bulunamadı. Sadece "Kolay Gelsin Marketplace" kargo firmasına ait siparişler için ZPL oluşturulabilir.'
                 ], 400);
             }
 
             foreach ($orders as $order) {
                 try {
+                    $store = $order->store;
+                    if (!$store) {
+                        $errors[] = "Sipariş {$order->order_id}: Mağaza bilgisi bulunamadı";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Eğer ZPL kodu yoksa önce oluştur (tekil generateZPL mantığı)
+                    if (empty($order->zpl_barcode)) {
+                        // KolayGelsinHelper ile ZPL barcode oluştur
+                        $barcodeResponse = KolayGelsinHelper::getBarcode($store, 2, $order->cargo_tracking_number);
+
+                        if (!isset($barcodeResponse['result']) || !isset($barcodeResponse['result']['BarcodeZpl'])) {
+                            $errors[] = "Sipariş {$order->order_id}: ZPL barcode oluşturulamadı - " . ($barcodeResponse['message'] ?? 'Bilinmeyen hata');
+                            $errorCount++;
+                            continue;
+                        }
+
+                        $originalZplCode = $barcodeResponse['result']['BarcodeZpl'];
+                        
+                        // Ürün bilgilerini ZPL'ye ekle
+                        $enhancedZplCode = $this->addProductInfoToZpl($originalZplCode, $order);
+                        
+                        // ZPL verisini Order'a kaydet
+                        $order->update([
+                            'zpl_barcode' => $enhancedZplCode
+                        ]);
+                    }
+
                     // ZPL formatını kontrol et
                     if (!ZplGeneratorHelper::isValidZpl($order->zpl_barcode)) {
                         $errors[] = "Sipariş {$order->order_id}: Geçersiz ZPL formatı";
@@ -626,6 +654,9 @@ class ShipmentController extends Controller
                             ->toMediaCollection('zpl_images');
                         
                         $successCount++;
+                        
+                        Log::info('Bulk ZPL image başarıyla oluşturuldu', ['order_id' => $order->id]);
+                        
                     } catch (\Exception $mediaError) {
                         $errors[] = "Sipariş {$order->order_id}: Media kaydetme hatası - " . $mediaError->getMessage();
                         $errorCount++;
@@ -645,9 +676,10 @@ class ShipmentController extends Controller
                     }
 
                 } catch (\Exception $orderError) {
-                    Log::error('Bulk ZPL image generation failed for single order', [
+                    Log::error('Bulk ZPL generation failed for single order', [
                         'order_id' => $order->id,
-                        'error' => $orderError->getMessage()
+                        'error' => $orderError->getMessage(),
+                        'trace' => $orderError->getTraceAsString()
                     ]);
                     
                     $errors[] = "Sipariş {$order->order_id}: " . $orderError->getMessage();
@@ -664,7 +696,7 @@ class ShipmentController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Bulk ZPL image generation failed', [
+            Log::error('Bulk ZPL generation failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -689,6 +721,20 @@ class ShipmentController extends Controller
 
         // Lines verisinden ürün bilgilerini al
         $linesData = json_decode($order->lines, true);
+        
+        // CRITICAL VALIDATION: Log which order gets which products
+        Log::info('ZPL Product Info Addition', [
+            'order_id' => $order->id,
+            'order_package_id' => $order->order_id,
+            'cargo_tracking_number' => $order->cargo_tracking_number,
+            'lines_count' => count($linesData ?? []),
+            'product_names' => array_map(function($line) {
+                return $line['productName'] ?? 'N/A';
+            }, $linesData ?? []),
+            'product_barcodes' => array_map(function($line) {
+                return $line['barcode'] ?? $line['sku'] ?? 'N/A';
+            }, $linesData ?? [])
+        ]);
         
         if (empty($linesData)) {
             // Ürün yoksa orijinal ZPL'yi döndür

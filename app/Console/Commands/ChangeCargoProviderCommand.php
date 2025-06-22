@@ -106,6 +106,19 @@ class ChangeCargoProviderCommand extends Command
                   
                     $orderResponse = TrendyolHelper::getOrderByPackageId($order->order_id, $store);
 
+                    // DEBUG: Trendyol'dan gelen response'u incele
+                    dd([
+                        'debug_point' => 'FIRST_API_CALL',
+                        'order_id' => $order->order_id,
+                        'order_db_id' => $order->id,
+                        'current_cargo_provider' => $order->cargo_service_provider,
+                        'current_tracking_number' => $order->cargo_tracking_number,
+                        'target_cargo' => $rule->to_cargo,
+                        'api_response' => $orderResponse,
+                        'api_response_tracking' => $orderResponse->cargoTrackingNumber ?? 'NOT_SET',
+                        'api_response_provider' => $orderResponse->cargoProviderName ?? 'NOT_SET'
+                    ]);
+
                     //check if orderResponse->cargotracking number starts with 888
                     if(str_starts_with($orderResponse->cargoTrackingNumber, '888')){
                         $order->cargo_service_provider = CargoRule::CARGO_PROVIDERS[$rule->to_cargo];
@@ -117,6 +130,17 @@ class ChangeCargoProviderCommand extends Command
                         sleep(2);
                         $orderResponse = TrendyolHelper::getOrderByPackageId($order->order_id, $store);
                         
+                        // DEBUG: İkinci API çağrısından sonra
+                        dd([
+                            'debug_point' => 'SECOND_API_CALL',
+                            'order_id' => $order->order_id,
+                            'order_db_id' => $order->id,
+                            'target_cargo' => $rule->to_cargo,
+                            'api_response' => $orderResponse,
+                            'api_response_tracking' => $orderResponse->cargoTrackingNumber ?? 'NOT_SET',
+                            'api_response_provider' => $orderResponse->cargoProviderName ?? 'NOT_SET'
+                        ]);
+                        
                         $order->cargo_service_provider = CargoRule::CARGO_PROVIDERS[$rule->to_cargo];
                         $order->cargo_tracking_number = $orderResponse->cargoTrackingNumber;
                         $order->save();
@@ -125,7 +149,15 @@ class ChangeCargoProviderCommand extends Command
 
                     if($rule->to_cargo == "KOLAYGELSINMP"){
                         $KolayGelsinBarcodeResponse = \App\Helpers\KolayGelsinHelper::getBarcode($store,2, $order->cargo_tracking_number);
-                        $KolayGelsinBarcode = $KolayGelsinBarcodeResponse['result']['BarcodeZpl'] ?? null;
+                        $originalZplCode = $KolayGelsinBarcodeResponse['result']['BarcodeZpl'] ?? null;
+                        
+                        // Ürün bilgilerini ZPL'ye ekle (ShipmentController'daki aynı mantık)
+                        if ($originalZplCode) {
+                            $enhancedZplCode = $this->addProductInfoToZpl($originalZplCode, $order);
+                            $KolayGelsinBarcode = $enhancedZplCode;
+                        } else {
+                            $KolayGelsinBarcode = null;
+                        }
                     }else{
                         $KolayGelsinBarcode = null;
                     }
@@ -185,6 +217,144 @@ class ChangeCargoProviderCommand extends Command
         $bar->finish();
         $this->newLine();
         $this->info("İşlem tamamlandı! {$totalAffectedOrders} sipariş güncellendi, {$totalSuccessfulRules} kural başarılı.");
+    }
+
+    /**
+     * ZPL koduna ürün bilgilerini ekler (ShipmentController'daki aynı method)
+     */
+    private function addProductInfoToZpl(string $originalZpl, Order $order): string
+    {
+        // ZPL'nin sonundaki ^XZ'yi bul ve kaldır
+        $zplWithoutEnd = rtrim($originalZpl);
+        if (str_ends_with($zplWithoutEnd, '^XZ')) {
+            $zplWithoutEnd = substr($zplWithoutEnd, 0, -3);
+        }
+
+        // Lines verisinden ürün bilgilerini al
+        $linesData = json_decode($order->lines, true);
+        
+        // CRITICAL VALIDATION: Log which order gets which products
+        Log::info('ZPL Product Info Addition (Command)', [
+            'order_id' => $order->id,
+            'order_package_id' => $order->order_id,
+            'cargo_tracking_number' => $order->cargo_tracking_number,
+            'lines_count' => count($linesData ?? []),
+            'product_names' => array_map(function($line) {
+                return $line['productName'] ?? 'N/A';
+            }, $linesData ?? []),
+            'product_barcodes' => array_map(function($line) {
+                return $line['barcode'] ?? $line['sku'] ?? 'N/A';
+            }, $linesData ?? [])
+        ]);
+        
+        if (empty($linesData)) {
+            // Ürün yoksa orijinal ZPL'yi döndür
+            return $originalZpl;
+        }
+
+        // Ürün bilgileri için ZPL kodları
+        $productZpl = '';
+        
+        // Sadece çizgi - başlık yok
+        $productZpl .= '^FO10,700^GB600,3,3,B,0^FS'; // Kalın çizgi
+        
+        $yPosition = 720; // Çizgiden hemen sonra başla
+        $lineHeight = 85; // Satır yüksekliği artırıldı (daha fazla alan)
+        // Sayfa sınırını kaldırıyoruz - tüm ürünler gösterilecek
+        
+        foreach ($linesData as $index => $productData) {
+            // Sayfa sınırı kontrolü kaldırıldı - tüm ürünler yazılacak
+            
+            // Ürün bilgilerini al
+            $productName = $productData['productName'] ?? 'Ürün Adı Yok';
+            $quantity = $productData['quantity'] ?? 1;
+            $barcode = $productData['barcode'] ?? ($productData['sku'] ?? 'Barkod Yok');
+            $productSize = $productData['productSize'] ?? '';
+            $productColor = $productData['productColor'] ?? '';
+            
+            // Birden fazla ürün varsa ayırıcı noktalı çizgi ekle (ilk ürün hariç)
+            if ($index > 0) {
+                $separatorY = $yPosition - 10;
+                $productZpl .= "^FO20,{$separatorY}^GB580,1,1,B,1^FS"; // İnce noktalı çizgi
+            }
+            
+            // Ürün adını satırlara böl (her satır maksimum 70 karakter)
+            $maxCharsPerLine = 70;
+            $productNameLines = [];
+            
+            if (strlen($productName) <= $maxCharsPerLine) {
+                // Tek satıra sığıyor
+                $productNameLines[] = $productName;
+            } else {
+                // Çok uzun, satırlara böl
+                $words = explode(' ', $productName);
+                $currentLine = '';
+                
+                foreach ($words as $word) {
+                    if (strlen($currentLine . ' ' . $word) <= $maxCharsPerLine) {
+                        $currentLine .= ($currentLine ? ' ' : '') . $word;
+                    } else {
+                        if ($currentLine) {
+                            $productNameLines[] = $currentLine;
+                            $currentLine = $word;
+                        } else {
+                            // Tek kelime çok uzunsa, zorla böl
+                            $productNameLines[] = substr($word, 0, $maxCharsPerLine - 3) . '...';
+                            $currentLine = '';
+                        }
+                    }
+                }
+                
+                if ($currentLine) {
+                    $productNameLines[] = $currentLine;
+                }
+                
+                // Maksimum 2 satır göster
+                if (count($productNameLines) > 2) {
+                    $productNameLines = array_slice($productNameLines, 0, 2);
+                    $productNameLines[1] = substr($productNameLines[1], 0, $maxCharsPerLine - 3) . '...';
+                }
+            }
+            
+            // Ürün adı satırlarını yazdır
+            $currentY = $yPosition;
+            foreach ($productNameLines as $lineIndex => $line) {
+                $productZpl .= "^FO20,{$currentY}^A0,22,22^FD{$line}^FS";
+                $currentY += 24; // Satır arası boşluk
+            }
+            
+            // İkinci kısım için Y pozisyonunu ayarla (ürün adı satır sayısına göre)
+            $secondLineY = $yPosition + (count($productNameLines) * 24) + 4;
+            
+            // ADET - çok büyük ve sol tarafta
+            $productZpl .= "^FO20,{$secondLineY}^A0,35,35^FDADET: {$quantity}^FS";
+            
+            // Barkod - sağ tarafta, büyük font
+            $productZpl .= "^FO380,{$secondLineY}^A0,28,28^FD{$barcode}^FS";
+            
+            // Renk ve ebat bilgisi - ortada, ADET ile Barkod arasında
+            $extraInfo = [];
+            if (!empty($productSize)) $extraInfo[] = $productSize;
+            if (!empty($productColor)) $extraInfo[] = $productColor;
+            
+            if (!empty($extraInfo)) {
+                $extraInfoText = implode(' | ', $extraInfo); // Pipe ile ayır
+                if (strlen($extraInfoText) > 25) {
+                    $extraInfoText = substr($extraInfoText, 0, 22) . '...';
+                }
+                // Ortada konumlandır
+                $productZpl .= "^FO180,{$secondLineY}^A0,20,20^FD{$extraInfoText}^FS";
+            }
+            
+            // Dinamik satır yüksekliği (ürün adı satır sayısına göre)
+            $dynamicLineHeight = $lineHeight + (count($productNameLines) > 1 ? 24 : 0);
+            $yPosition += $dynamicLineHeight;
+        }
+        
+        // Artık tüm ürünler gösteriliyor - "kalan ürün" kısmı kaldırıldı
+        
+        // ZPL'yi birleştir ve sonlandır
+        return $zplWithoutEnd . $productZpl . '^XZ';
     }
 
     /**

@@ -337,11 +337,9 @@
                                         <input type="checkbox" class="form-check-input" style="width: 1.25rem; height: 1.25rem;" 
                                                id="selectAll" onchange="toggleSelectAll()">
                                     </th>
-                                    <th class="text-center" style="width: 120px;">Sipariş No</th>
-                                    <th class="text-center" style="width: 100px;">Mağaza</th>
-                                    <th class="text-center" style="width: 100px;">Kalan Süre</th>
-                                    <th class="text-center" style="width: 150px;">Müşteri</th>
-                                    <th class="text-center" style="width: 140px;">Kargo Takip No</th>
+                                    <th class="text-center" style="width: 200px;">Sipariş Bilgileri</th>
+                                    <th class="text-center" style="width: 160px;">Mağaza & Kargo</th>
+                                    <th class="text-center" style="width: 80px;">ZPL Durumu</th>
                                     <th class="text-center" style="width: 100px;">Durum</th>
                                     <th class="text-center" style="width: 90px;">Tutar</th>
                                     <th class="text-center" style="width: 220px; min-width: 220px;">Ürünler</th>
@@ -356,7 +354,7 @@
                                             <input type="checkbox" class="form-check-input order-checkbox" 
                                                    style="width: 1.25rem; height: 1.25rem;" 
                                                    name="order_ids[]" value="{{ $order->id }}" 
-                                                   data-zpl="{{ htmlspecialchars($order->zpl_barcode) }}"
+                                                   data-zpl="{{ $order->zpl_barcode ? htmlspecialchars($order->zpl_barcode) : '' }}"
                                                    data-order-id="{{ $order->order_id }}"
                                                    data-customer="{{ $order->customer_name }}"
                                                    data-address="{{ $order->address }}"
@@ -364,33 +362,106 @@
                                                    data-cargo="{{ $order->cargo_service_provider }}"
                                                    onchange="updatePrintButtons()">
                                         </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-secondary fs-6">{{ $order->order_id }}</span>
+                                        <td style="padding: 8px; min-width: 200px;">
+                                            <div class="d-flex flex-column">
+                                                <!-- Sipariş Numarası -->
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <span class="fw-bold text-dark">#{{ $order->order_id }}</span>
+                                                    <i class="fas fa-copy text-muted" style="cursor: pointer; font-size: 0.8rem;" 
+                                                       onclick="navigator.clipboard.writeText('{{ $order->order_id }}')" 
+                                                       title="Kopyala"></i>
+                                                    @if($order->cargo_service_provider === 'Kolay Gelsin Marketplace')
+                                                        <i class="fas fa-truck text-success" title="Kolay Gelsin Marketplace"></i>
+                                                    @endif
+                                                </div>
+                                                
+                                                <!-- Sipariş Tarihi -->
+                                                <div class="text-muted" style="font-size: 0.8rem;">
+                                                    <i class="fas fa-calendar-alt me-1"></i>
+                                                    <strong>Sipariş Tarihi:</strong><br>
+                                                    {{ \Carbon\Carbon::parse($order->order_date)->locale('tr')->format('d F Y H:i') }}
+                                                </div>
+                                                
+                                                <!-- Kalan Süre -->
+                                                @if($order->remaining_delivery_time)
+                                                    <div class="mt-1">
+                                                        @if($order->remaining_delivery_time === 'Süre doldu')
+                                                            <span class="badge bg-danger" style="font-size: 0.7rem;">
+                                                                <i class="fas fa-exclamation-triangle"></i> Süre doldu
+                                                            </span>
+                                                        @else
+                                                            <span class="badge bg-primary" style="font-size: 0.7rem;">
+                                                                <i class="fas fa-clock"></i> {{ $order->remaining_delivery_time }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                                
+
+                                                
+                                                <!-- Alıcı -->
+                                                <div class="mt-1">
+                                                    <div class="d-flex align-items-center gap-1">
+                                                        <i class="fas fa-star text-warning" style="font-size: 0.7rem;"></i>
+                                                        <span class="text-primary fw-bold" style="font-size: 0.8rem;">
+                                                            {{ Str::limit($order->customer_name, 15) }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="padding: 8px; min-width: 160px;">
+                                            <div class="d-flex flex-column">
+                                                <!-- Mağaza Adı -->
+                                                <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;">
+                                                    {{ Str::limit($order->store?->merchant_name ?? '-', 20) }}
+                                                </div>
+                                                
+                                                <!-- Paket No -->
+                                                @if($order->cargo_tracking_number)
+                                                    <div class="text-muted mb-1" style="font-size: 0.75rem;">
+                                                        <i class="fas fa-box me-1"></i>
+                                                        <strong>Paket:</strong> {{ Str::limit($order->cargo_tracking_number, 15) }}
+                                                    </div>
+                                                @else
+                                                    <div class="text-muted mb-1" style="font-size: 0.75rem;">
+                                                        <i class="fas fa-box me-1"></i>
+                                                        <strong>Paket:</strong> -
+                                                    </div>
+                                                @endif
+                                                
+                                                <!-- Kargo Durumu -->
+                                                <div>
+                                                    @if($order->cargo_tracking_number)
+                                                        <span class="badge bg-success" style="font-size: 0.65rem;">
+                                                            <i class="fas fa-shipping-fast"></i> Aktif
+                                                        </span>
+                                                    @else
+                                                        <span class="badge bg-warning" style="font-size: 0.65rem;">
+                                                            <i class="fas fa-clock"></i> Bekliyor
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </div>
                                         </td>
                                         <td class="text-center">
-                                            <small class="text-muted">{{ $order->store?->merchant_name ?? '-' }}</small>
-                                        </td>
-                                        <td class="text-center">
-                                            @if($order->remaining_delivery_time)
-                                                @if($order->remaining_delivery_time === 'Süre doldu')
-                                                    <span class="badge bg-danger fs-6">
-                                                        <i class="fas fa-clock"></i> {{ $order->remaining_delivery_time }}
+                                            @if($order->cargo_service_provider === 'Kolay Gelsin Marketplace')
+                                                @if($order->zpl_barcode && !empty(trim($order->zpl_barcode)))
+                                                    <span class="badge bg-success" style="font-size: 0.7rem;">
+                                                        <i class="fas fa-check-circle"></i> Hazır
                                                     </span>
                                                 @else
-                                                    <span class="badge bg-info text-dark fs-6">
-                                                        <i class="fas fa-hourglass-half"></i> {{ $order->remaining_delivery_time }}
+                                                    <span class="badge bg-danger" style="font-size: 0.7rem;">
+                                                        <i class="fas fa-times-circle"></i> Yok
                                                     </span>
                                                 @endif
                                             @else
-                                                <span class="text-muted">-</span>
+                                                <span class="badge bg-light text-muted" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-minus"></i> N/A
+                                                </span>
                                             @endif
                                         </td>
-                                        <td>
-                                            <div class="fw-bold text-primary">{{ Str::limit($order->customer_name, 20) }}</div>
-                                        </td>
-                                        <td class="text-center">
-                                            <small class="font-monospace">{{ $order->cargo_tracking_number ?: '-' }}</small>
-                                        </td>
+
                                         <td class="text-center">
                                             @php
                                                 $statusColors = [
@@ -508,21 +579,61 @@ function updatePrintButtons() {
     
     // Buton metinlerini güncelle
     const count = checkedBoxes.length;
+    
+    // ZPL durumlarını say
+    let zplNeededCount = 0; // Sadece Kolay Gelsin Marketplace için ZPL oluşturulacak
+    let zplExistingCount = 0; // ZPL'i olan tüm siparişler yazdırılabilir
+    
+    checkedBoxes.forEach(checkbox => {
+        const zpl = checkbox.getAttribute('data-zpl');
+        const cargo = checkbox.getAttribute('data-cargo');
+        
+        // ZPL Oluştur: Sadece Kolay Gelsin Marketplace ve ZPL'i olmayan siparişler
+        if (cargo === 'Kolay Gelsin Marketplace' && (!zpl || zpl.trim() === '')) {
+            zplNeededCount++;
+        }
+        
+        // ZPL Yazdır/PDF: ZPL'i olan tüm siparişler (kargo firması fark etmez)
+        if (zpl && zpl.trim() !== '') {
+            zplExistingCount++;
+        }
+    });
+    
     const zplCreateText = document.getElementById('zplCreateText');
     const zplPrintText = document.getElementById('zplPrintText');
     const pdfPrintText = document.getElementById('pdfPrintText');
     const processText = document.getElementById('processText');
     
     if (count > 0) {
-        zplCreateBtn.disabled = false;
-        zplBtn.disabled = false;
-        pdfBtn.disabled = false;
-        processBtn.disabled = false;
+        // ZPL Oluştur butonu - sadece ZPL'i olmayan Kolay Gelsin siparişleri varsa aktif
+        if (zplNeededCount > 0) {
+            zplCreateBtn.disabled = false;
+            zplCreateText.textContent = `ZPL Oluştur (${zplNeededCount})`;
+        } else {
+            zplCreateBtn.disabled = true;
+            zplCreateText.textContent = 'ZPL Oluştur (0)';
+        }
         
-        // Buton metinlerinde sayıyı göster
-        zplCreateText.textContent = `ZPL Oluştur (${count})`;
-        zplPrintText.textContent = `ZPL Yazdır (${count})`;
-        pdfPrintText.textContent = `PDF Yazdır (${count})`;
+        // ZPL Yazdır butonu - ZPL'i olan siparişler varsa aktif
+        if (zplExistingCount > 0) {
+            zplBtn.disabled = false;
+            zplPrintText.textContent = `ZPL Yazdır (${zplExistingCount})`;
+        } else {
+            zplBtn.disabled = true;
+            zplPrintText.textContent = 'ZPL Yazdır (0)';
+        }
+        
+        // PDF Yazdır butonu - ZPL'i olan siparişler varsa aktif
+        if (zplExistingCount > 0) {
+            pdfBtn.disabled = false;
+            pdfPrintText.textContent = `PDF Yazdır (${zplExistingCount})`;
+        } else {
+            pdfBtn.disabled = true;
+            pdfPrintText.textContent = 'PDF Yazdır (0)';
+        }
+        
+        // İşleme Alındı butonu - tüm seçili siparişler için
+        processBtn.disabled = false;
         processText.textContent = `İşleme Alındı (${count})`;
     } else {
         zplCreateBtn.disabled = true;
@@ -563,13 +674,28 @@ function printZPL() {
     const orderIds = [];
     const zplCodes = [];
     
-    checkedBoxes.forEach(checkbox => {
+    console.log('Toplam seçili sipariş:', checkedBoxes.length);
+    
+    checkedBoxes.forEach((checkbox, index) => {
         const zpl = checkbox.getAttribute('data-zpl');
+        const cargo = checkbox.getAttribute('data-cargo');
+        const orderId = checkbox.getAttribute('data-order-id');
+        
+        console.log(`Sipariş ${index + 1}:`, {
+            orderId: orderId,
+            cargo: cargo,
+            hasZpl: !!(zpl && zpl.trim()),
+            zplLength: zpl ? zpl.length : 0
+        });
+        
+        // ZPL'i olan tüm siparişleri yazdır (kargo firması fark etmez)
         if (zpl && zpl.trim()) {
             zplCodes.push(zpl);
             orderIds.push(checkbox.value);
         }
     });
+    
+    console.log('Yazdırılacak ZPL sayısı:', zplCodes.length);
     
     if (zplCodes.length === 0) {
         showToast('Seçilen siparişlerin ZPL verileri bulunamadı.', 'error');
@@ -648,39 +774,113 @@ function tryZebraPrint(zplCodes, orderIds) {
 
 // Normal A4 yazıcı için fallback yazdırma (ZPL görüntüleri ile)
 function fallbackToBrowserPrint(zplCodes, orderIds) {
-    showToast('Normal yazıcı için etiket görüntüleri hazırlanıyor...', 'info');
-    
-    // ZPL kodlarından görüntü URL'lerini al
-    const imagePromises = zplCodes.map((zpl, index) => {
-        return new Promise((resolve, reject) => {
-            // ZPL kodunu Labelary API'ye göndererek PNG elde et (6x4 inç - daha uzun etiket)
-            fetch('https://api.labelary.com/v1/printers/8dpmm/labels/6x4/0/', {
-                method: 'POST',
-                headers: {
-                    'Accept': 'image/png',
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: zpl
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.blob();
-                }
-                throw new Error('API hatası');
-            })
-            .then(blob => {
-                const imageUrl = URL.createObjectURL(blob);
-                resolve({ index, imageUrl, orderId: orderIds[index] });
-            })
-            .catch(error => {
-                console.error(`ZPL ${index + 1} görüntü oluşturma hatası:`, error);
-                resolve({ index, imageUrl: null, orderId: orderIds[index] });
-            });
-        });
+    console.log('fallbackToBrowserPrint çağrıldı:', {
+        zplCodesCount: zplCodes.length,
+        orderIdsCount: orderIds.length,
+        zplCodes: zplCodes.map((zpl, i) => ({
+            index: i,
+            orderId: orderIds[i],
+            zplLength: zpl.length,
+            zplPreview: zpl.substring(0, 50) + '...'
+        }))
     });
     
-    Promise.all(imagePromises).then(results => {
+    showToast('Normal yazıcı için etiket görüntüleri hazırlanıyor...', 'info');
+    
+    // ZPL kodlarından görüntü URL'lerini al (sıralı işlem - rate limit için)
+    const processZplSequentially = async () => {
+        const results = [];
+        
+        for (let index = 0; index < zplCodes.length; index++) {
+            const zpl = zplCodes[index];
+            const orderId = orderIds[index];
+            
+            console.log(`ZPL ${index + 1}/${zplCodes.length} işleniyor:`, {
+                orderId: orderId,
+                zplLength: zpl.length,
+                zplStart: zpl.substring(0, 100)
+            });
+            
+            try {
+                // Labelary API'ye ZPL gönder
+                const response = await fetch('https://api.labelary.com/v1/printers/8dpmm/labels/6x4/0/', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'image/png',
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: zpl
+                });
+                
+                console.log(`ZPL ${index + 1} API yanıtı:`, {
+                    orderId: orderId,
+                    status: response.status,
+                    ok: response.ok,
+                    statusText: response.statusText
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    console.log(`ZPL ${index + 1} blob oluşturuldu:`, {
+                        orderId: orderId,
+                        blobSize: blob.size,
+                        blobType: blob.type
+                    });
+                    
+                    const imageUrl = URL.createObjectURL(blob);
+                    results.push({ index, imageUrl, orderId });
+                } else {
+                    throw new Error(`API hatası: ${response.status} - ${response.statusText}`);
+                }
+                
+                // Rate limiting için kısa bekleme (500ms)
+                if (index < zplCodes.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+            } catch (error) {
+                console.error(`ZPL ${index + 1} görüntü oluşturma hatası:`, {
+                    orderId: orderId,
+                    error: error.message,
+                    zplPreview: zpl.substring(0, 200)
+                });
+                results.push({ index, imageUrl: null, orderId });
+            }
+        }
+        
+        return results;
+    };
+    
+    processZplSequentially().then(results => {
+        console.log('Tüm ZPL işleme sonuçları:', {
+            totalRequests: results.length,
+            successfulImages: results.filter(r => r.imageUrl !== null).length,
+            failedImages: results.filter(r => r.imageUrl === null).length,
+            results: results.map(r => ({
+                index: r.index,
+                orderId: r.orderId,
+                hasImage: r.imageUrl !== null
+            }))
+        });
+        
         const validImages = results.filter(result => result.imageUrl !== null);
+        const failedImages = results.filter(result => result.imageUrl === null);
+        
+        if (failedImages.length > 0) {
+            console.warn('Başarısız ZPL görüntüleri:', failedImages.map(f => f.orderId));
+            showToast(`Uyarı: ${failedImages.length} adet ZPL görüntüsü oluşturulamadı.`, 'warning');
+            
+            // Başarısız ZPL'leri de göster
+            failedImages.forEach(failed => {
+                const failedZpl = zplCodes[failed.index];
+                console.error(`Başarısız ZPL ${failed.orderId}:`, {
+                    zplCode: failedZpl,
+                    zplLength: failedZpl.length,
+                    zplStart: failedZpl.substring(0, 200),
+                    zplEnd: failedZpl.substring(failedZpl.length - 200)
+                });
+            });
+        }
         
         if (validImages.length === 0) {
             showToast('Hiçbir etiket görüntüsü oluşturulamadı.', 'error');
@@ -699,6 +899,18 @@ function fallbackToBrowserPrint(zplCodes, orderIds) {
             `;
         });
         
+        // Debug bilgilerini de ekle
+        let debugInfo = '';
+        if (failedImages.length > 0) {
+            debugInfo = `
+                <div class="debug-info" style="background: #fff3cd; padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #ffeaa7;">
+                    <strong>⚠️ Uyarı:</strong> ${failedImages.length} adet ZPL görüntüsü oluşturulamadı<br>
+                    <small>Başarısız Sipariş ID'leri: ${failedImages.map(f => f.orderId).join(', ')}</small><br>
+                    <small>Toplam gönderilen: ${results.length} | Başarılı: ${validImages.length} | Başarısız: ${failedImages.length}</small>
+                </div>
+            `;
+        }
+        
         printWindow.document.write(`
             <html>
             <head>
@@ -706,10 +918,12 @@ function fallbackToBrowserPrint(zplCodes, orderIds) {
                 <style>
                     body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
                     .print-info { background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 5px; text-align: center; }
+                    .debug-info { background: #fff3cd; padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #ffeaa7; }
                     .label-container:last-child { page-break-after: auto; }
                     @media print { 
                         body { margin: 0; padding: 0; }
                         .print-info { display: none; }
+                        .debug-info { display: none; }
                         .label-container { margin: 10px 0; }
                     }
                 </style>
@@ -721,6 +935,7 @@ function fallbackToBrowserPrint(zplCodes, orderIds) {
                     <button onclick="window.print()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">Yazdır</button>
                     <button onclick="window.close()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Kapat</button>
                 </div>
+                ${debugInfo}
                 ${imagesHtml}
             </body>
             </html>
@@ -763,6 +978,8 @@ function printPDF() {
     
     checkedBoxes.forEach(checkbox => {
         const zpl = checkbox.getAttribute('data-zpl');
+        
+        // ZPL'i olan tüm siparişleri yazdır (kargo firması fark etmez)
         if (zpl && zpl.trim()) {
             zplCodes.push(zpl);
             orderIds.push(checkbox.value);
@@ -1069,8 +1286,22 @@ function generateBulkZPLImages() {
         return;
     }
     
-    // Seçili order ID'leri topla
-    const orderIds = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+    // Sadece ZPL'i olmayan Kolay Gelsin Marketplace siparişlerini filtrele
+    const orderIds = [];
+    checkedBoxes.forEach(checkbox => {
+        const zpl = checkbox.getAttribute('data-zpl');
+        const cargo = checkbox.getAttribute('data-cargo');
+        
+        // Sadece Kolay Gelsin Marketplace ve ZPL'i olmayan siparişler
+        if (cargo === 'Kolay Gelsin Marketplace' && (!zpl || zpl.trim() === '')) {
+            orderIds.push(checkbox.value);
+        }
+    });
+    
+    if (orderIds.length === 0) {
+        showToast('Seçilen siparişlerin tümünde ZPL zaten mevcut veya Kolay Gelsin Marketplace siparişi değil.', 'warning');
+        return;
+    }
     
     // Loading toast göster
     showToast(`${orderIds.length} siparişin ZPL görüntüleri oluşturuluyor...`, 'info');
@@ -1081,7 +1312,7 @@ function generateBulkZPLImages() {
     zplCreateBtn.disabled = true;
     zplCreateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Oluşturuluyor...';
     
-    fetch('/shipments/generate-bulk-zpl-images', {
+    fetch('{{ route("shipments.generate-bulk-zpl-images") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

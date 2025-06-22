@@ -38,24 +38,61 @@ class OrderProductFetchCommand extends Command
         foreach ($orders as $order) {
             try {
                 $products = json_decode($order?->lines);
+                if (!$products) {
+                    $this->warn("Order {$order->id} has no valid lines data");
+                    $bar->advance();
+                    continue;
+                }
+                
                 foreach ($products as $product) {
-                    $productRecord = TrendyolHelper::getProductByBarcode($order->user, $order->store, $product?->barcode);
+                    if (!$product?->barcode) {
+                        $this->warn("Product in order {$order->id} has no barcode");
+                        continue;
+                    }
                     
-                    OrderProduct::firstOrCreate([
-                        'order_id' => $order->id,
-                        'product_id' => $productRecord->id,
-                    ], [
-                        'user_id' => $order->user->id,
-                        'store_id' => $order->store->id,
-                        'quantity' => $product?->quantity,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                    $productRecord = TrendyolHelper::getProductByBarcode($order->user, $order->store, $product->barcode);
+                    
+                    // Ürün bulunamazsa atla
+                    if (!$productRecord) {
+                        $this->warn("Product not found for barcode: {$product->barcode} in order {$order->id}");
+                        continue;
+                    }
+                    
+                    // Ürünün database'de gerçekten var olup olmadığını kontrol et
+                    $existingProduct = \App\Models\Product::find($productRecord->id);
+                    if (!$existingProduct) {
+                        $this->warn("Product ID {$productRecord->id} does not exist in database for barcode: {$product->barcode} in order {$order->id}");
+                        // Cache'i temizle
+                        \Illuminate\Support\Facades\Cache::forget($product->barcode);
+                        continue;
+                    }
+                    
+                    try {
+                        OrderProduct::firstOrCreate([
+                            'order_id' => $order->id,
+                            'product_id' => $productRecord->id,
+                        ], [
+                            'user_id' => $order->user->id,
+                            'store_id' => $order->store->id,
+                            'quantity' => $product->quantity ?? 1,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        if ($e->getCode() === '23000') {
+                            $this->warn("Foreign key constraint violation for product_id: {$productRecord->id}, barcode: {$product->barcode} in order {$order->id}");
+                            // Cache'i temizle
+                            \Illuminate\Support\Facades\Cache::forget($product->barcode);
+                        } else {
+                            throw $e;
+                        }
+                    }
                 }
                 $bar->advance();
             } catch (\Exception $exception) {
                 dd($exception);
                 Log::error("Error fetching orders for user {$order->user->id} and store {$order->store->id}: " . $exception->getMessage() . " Line:" . $exception->getLine());
+                $bar->advance(); // Hatada da progress bar'ı ilerlet
             }
         }
         $bar->finish();

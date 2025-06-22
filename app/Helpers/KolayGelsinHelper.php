@@ -32,6 +32,7 @@ class KolayGelsinHelper
  
     public static function getBarcode($store, $barcodeLabelType, $referenceNo)
     {
+        
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . self::login($store)
         ])->post('https://api.sendeo.com.tr/api/Cargo/GETBARCODE', [
