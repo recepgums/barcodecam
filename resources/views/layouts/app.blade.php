@@ -97,8 +97,9 @@
                     <a class="navbar-brand {{ request()->routeIs('shipments.index') ? 'active' : '' }}" href="{{ route('shipments.index') }}">
                         <i class="fas fa-shipping-fast me-2"></i>Siparişler
                     </a>
-                    <a class="navbar-brand {{ request()->routeIs('shipments.rules.*') ? 'active' : '' }}" href="{{ route('shipments.rules.index') }}">
-                        <i class="fas fa-cogs me-2"></i>Kargo Kuralları
+                  
+                    <a class="navbar-brand" href="#" data-bs-toggle="modal" data-bs-target="#commandsModal">
+                        <i class="fas fa-terminal me-2"></i>Komutlar
                     </a>
                 </div>
                 @endif
@@ -150,6 +151,158 @@
             @yield('content')
         </main>
     </div>
+
+    @if(Auth::check())
+    <!-- Commands Modal -->
+    <div class="modal fade" id="commandsModal" tabindex="-1" aria-labelledby="commandsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="commandsModalLabel">
+                        <i class="fas fa-terminal me-2"></i>Komutlar
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-download fa-3x text-primary mb-3"></i>
+                                    <h5 class="card-title">Siparişleri Çek</h5>
+                                    <p class="card-text">Tüm mağazalar için siparişleri çeker</p>
+                                    <button type="button" class="btn btn-primary" onclick="executeCommand('fetch:orders')">
+                                        <i class="fas fa-play me-2"></i>Çalıştır
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-box fa-3x text-success mb-3"></i>
+                                    <h5 class="card-title">Ürün Bilgilerini Çek</h5>
+                                    <p class="card-text">Siparişlerdeki ürün bilgilerini çeker</p>
+                                    <button type="button" class="btn btn-success" onclick="executeCommand('order:product-fetch')">
+                                        <i class="fas fa-play me-2"></i>Çalıştır
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Command Output -->
+                    <div id="commandOutput" class="mt-4" style="display: none;">
+                        <h6>Komut Çıktısı:</h6>
+                        <div class="alert" id="commandResult">
+                            <div id="commandResultContent"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading -->
+                    <div id="commandLoading" class="text-center mt-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Yükleniyor...</span>
+                        </div>
+                        <p class="mt-2">Komut çalışıyor, lütfen bekleyiniz...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function executeCommand(command) {
+            // Show loading
+            document.getElementById('commandLoading').style.display = 'block';
+            document.getElementById('commandOutput').style.display = 'none';
+            
+            // Disable all buttons
+            const buttons = document.querySelectorAll('#commandsModal button[onclick]');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Çalışıyor...';
+            });
+
+            fetch('{{ route("commands.execute") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    command: command
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading
+                document.getElementById('commandLoading').style.display = 'none';
+                
+                // Show result
+                const resultDiv = document.getElementById('commandResult');
+                const contentDiv = document.getElementById('commandResultContent');
+                
+                if (data.success) {
+                    resultDiv.className = 'alert alert-success';
+                    contentDiv.innerHTML = `
+                        <h6><i class="fas fa-check-circle me-2"></i>${data.message}</h6>
+                        ${data.output ? `<pre class="mt-2 mb-0">${data.output}</pre>` : ''}
+                    `;
+                } else {
+                    resultDiv.className = 'alert alert-danger';
+                    contentDiv.innerHTML = `
+                        <h6><i class="fas fa-exclamation-circle me-2"></i>${data.message}</h6>
+                        ${data.output ? `<pre class="mt-2 mb-0">${data.output}</pre>` : ''}
+                    `;
+                }
+                
+                document.getElementById('commandOutput').style.display = 'block';
+                
+                // Re-enable buttons
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    const commandName = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                    if (commandName === 'fetch:orders') {
+                        btn.innerHTML = '<i class="fas fa-play me-2"></i>Çalıştır';
+                    } else {
+                        btn.innerHTML = '<i class="fas fa-play me-2"></i>Çalıştır';
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                
+                // Hide loading
+                document.getElementById('commandLoading').style.display = 'none';
+                
+                // Show error
+                const resultDiv = document.getElementById('commandResult');
+                const contentDiv = document.getElementById('commandResultContent');
+                
+                resultDiv.className = 'alert alert-danger';
+                contentDiv.innerHTML = `
+                    <h6><i class="fas fa-exclamation-circle me-2"></i>Hata oluştu!</h6>
+                    <p>Komut çalıştırılırken bir hata oluştu.</p>
+                `;
+                
+                document.getElementById('commandOutput').style.display = 'block';
+                
+                // Re-enable buttons
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    const commandName = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                    if (commandName === 'fetch:orders') {
+                        btn.innerHTML = '<i class="fas fa-play me-2"></i>Çalıştır';
+                    } else {
+                        btn.innerHTML = '<i class="fas fa-play me-2"></i>Çalıştır';
+                    }
+                });
+            });
+        }
+    </script>
+    @endif
+
 @yield('scripts')
 </body>
 </html>

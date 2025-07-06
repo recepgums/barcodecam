@@ -32,16 +32,26 @@ class KolayGelsinHelper
  
     public static function getBarcode($store, $barcodeLabelType, $referenceNo)
     {
-        
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . self::login($store)
+            'Authorization' => 'Bearer ' . str_replace(' ', '', self::login($store))
         ])->post('https://api.sendeo.com.tr/api/Cargo/GETBARCODE', [
             'barcodeLabelType' => $barcodeLabelType,
             'referenceNo' => $referenceNo
         ]);
 
         if($response->json()['StatusCode'] != 200){
-            dd($response->json(),self::login($store),$barcodeLabelType,$referenceNo);
+            $errorData = $response->json();
+            $errorMessage = $errorData['exceptionMessage'] ?? 'KolayGelsin API hatası';
+            
+            Log::error('KolayGelsin getBarcode hatası', [
+                'store_id' => $store->id,
+                'barcodeLabelType' => $barcodeLabelType,
+                'referenceNo' => $referenceNo,
+                'response' => $errorData,
+                'token' => self::login($store)
+            ]);
+            
+            throw new \Exception("KolayGelsin ZPL oluşturulamadı: {$errorMessage}");
         }
         if($response->status() == 401){
             self::login($store);

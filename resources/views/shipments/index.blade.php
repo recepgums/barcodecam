@@ -192,6 +192,24 @@
         font-size: 0.75rem;
     }
 }
+
+/* Ürün sayısı filtre butonları için responsive */
+@media (max-width: 768px) {
+    .card-header {
+        flex-direction: column !important;
+        gap: 1rem !important;
+    }
+    
+    .card-header > div {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .btn-group .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
 </style>
 
 <div class="container">
@@ -311,10 +329,29 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Kargo Listesi</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <span>Kargo Listesi</span>
+                        <div class="btn-group" role="group" aria-label="Ürün Sayısı Filtresi">
+                            <a href="{{ request()->fullUrlWithQuery(['product_count' => '']) }}" 
+                               class="btn btn-sm {{ !request('product_count') ? 'btn-primary' : 'btn-outline-primary' }}">
+                                <i class="fas fa-list"></i> Tümü
+                            </a>
+                            <a href="{{ request()->fullUrlWithQuery(['product_count' => 'single']) }}" 
+                               class="btn btn-sm {{ request('product_count') == 'single' ? 'btn-success' : 'btn-outline-success' }}">
+                                <i class="fas fa-cube"></i> Tekli Ürünler
+                            </a>
+                            <a href="{{ request()->fullUrlWithQuery(['product_count' => 'multiple']) }}" 
+                               class="btn btn-sm {{ request('product_count') == 'multiple' ? 'btn-warning' : 'btn-outline-warning' }}">
+                                <i class="fas fa-cubes"></i> Karışıklar
+                            </a>
+                        </div>
+                    </div>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-success btn-sm" onclick="generateBulkZPLImages()" id="zplCreateBtn" disabled>
                             <i class="fas fa-magic"></i> <span id="zplCreateText">ZPL Oluştur</span>
+                        </button>
+                        <button type="button" class="btn btn-info btn-sm" onclick="convertToKolayGelsin()" id="kolayGelsinBtn" disabled>
+                            <i class="fas fa-exchange-alt"></i> <span id="kolayGelsinText">KolayGelsin'e Çevir</span>
                         </button>
                         <button type="button" class="btn btn-primary btn-sm" onclick="printZPL()" id="zplPrintBtn" disabled>
                             <i class="fas fa-print"></i> <span id="zplPrintText">ZPL Yazdır</span>
@@ -417,18 +454,18 @@
                                                     {{ Str::limit($order->store?->merchant_name ?? '-', 20) }}
                                                 </div>
                                                 
-                                                <!-- Paket No -->
-                                                @if($order->cargo_tracking_number)
-                                                    <div class="text-muted mb-1" style="font-size: 0.75rem;">
-                                                        <i class="fas fa-box me-1"></i>
-                                                        <strong>Paket:</strong> {{ Str::limit($order->cargo_tracking_number, 15) }}
-                                                    </div>
-                                                @else
-                                                    <div class="text-muted mb-1" style="font-size: 0.75rem;">
-                                                        <i class="fas fa-box me-1"></i>
-                                                        <strong>Paket:</strong> -
-                                                    </div>
-                                                @endif
+                                                                                <!-- Paket No -->
+                                @if($order->cargo_tracking_number)
+                                    <div class="text-muted mb-1" style="font-size: 0.75rem;">
+                                        <i class="fas fa-box me-1"></i>
+                                        <strong>Paket:</strong> {{ $order->cargo_tracking_number }}
+                                    </div>
+                                @else
+                                    <div class="text-muted mb-1" style="font-size: 0.75rem;">
+                                        <i class="fas fa-box me-1"></i>
+                                        <strong>Paket:</strong> -
+                                    </div>
+                                @endif
                                                 
                                                 <!-- Kargo Durumu -->
                                                 <div>
@@ -573,6 +610,7 @@ function toggleSelectAll() {
 function updatePrintButtons() {
     const checkedBoxes = document.querySelectorAll('.order-checkbox:checked');
     const zplCreateBtn = document.getElementById('zplCreateBtn');
+    const kolayGelsinBtn = document.getElementById('kolayGelsinBtn');
     const zplBtn = document.getElementById('zplPrintBtn');
     const pdfBtn = document.getElementById('pdfPrintBtn');
     const processBtn = document.getElementById('processBtn');
@@ -583,6 +621,7 @@ function updatePrintButtons() {
     // ZPL durumlarını say
     let zplNeededCount = 0; // Sadece Kolay Gelsin Marketplace için ZPL oluşturulacak
     let zplExistingCount = 0; // ZPL'i olan tüm siparişler yazdırılabilir
+    let nonKolayGelsinCount = 0; // Kolay Gelsin Marketplace olmayan siparişler
     
     checkedBoxes.forEach(checkbox => {
         const zpl = checkbox.getAttribute('data-zpl');
@@ -597,9 +636,15 @@ function updatePrintButtons() {
         if (zpl && zpl.trim() !== '') {
             zplExistingCount++;
         }
+        
+        // KolayGelsin'e Çevir: Kolay Gelsin Marketplace olmayan siparişler
+        if (cargo !== 'Kolay Gelsin Marketplace') {
+            nonKolayGelsinCount++;
+        }
     });
     
     const zplCreateText = document.getElementById('zplCreateText');
+    const kolayGelsinText = document.getElementById('kolayGelsinText');
     const zplPrintText = document.getElementById('zplPrintText');
     const pdfPrintText = document.getElementById('pdfPrintText');
     const processText = document.getElementById('processText');
@@ -612,6 +657,15 @@ function updatePrintButtons() {
         } else {
             zplCreateBtn.disabled = true;
             zplCreateText.textContent = 'ZPL Oluştur (0)';
+        }
+        
+        // KolayGelsin'e Çevir butonu - Kolay Gelsin Marketplace olmayan siparişler varsa aktif
+        if (nonKolayGelsinCount > 0) {
+            kolayGelsinBtn.disabled = false;
+            kolayGelsinText.textContent = `KolayGelsin'e Çevir (${nonKolayGelsinCount})`;
+        } else {
+            kolayGelsinBtn.disabled = true;
+            kolayGelsinText.textContent = 'KolayGelsin\'e Çevir (0)';
         }
         
         // ZPL Yazdır butonu - ZPL'i olan siparişler varsa aktif
@@ -637,12 +691,14 @@ function updatePrintButtons() {
         processText.textContent = `İşleme Alındı (${count})`;
     } else {
         zplCreateBtn.disabled = true;
+        kolayGelsinBtn.disabled = true;
         zplBtn.disabled = true;
         pdfBtn.disabled = true;
         processBtn.disabled = true;
         
         // Buton metinlerini sıfırla
         zplCreateText.textContent = 'ZPL Oluştur';
+        kolayGelsinText.textContent = 'KolayGelsin\'e Çevir';
         zplPrintText.textContent = 'ZPL Yazdır';
         pdfPrintText.textContent = 'PDF Yazdır';
         processText.textContent = 'İşleme Alındı';
@@ -1169,6 +1225,85 @@ function updateToProcess() {
     });
 }
 
+// KolayGelsin'e çevir fonksiyonu
+function convertToKolayGelsin() {
+    const checkedBoxes = document.querySelectorAll('.order-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        showToast('Lütfen KolayGelsin\'e çevirmek istediğiniz siparişleri seçin.', 'error');
+        return;
+    }
+    
+    // Sadece Kolay Gelsin Marketplace olmayan siparişleri filtrele
+    const orderIds = [];
+    checkedBoxes.forEach(checkbox => {
+        const cargo = checkbox.getAttribute('data-cargo');
+        
+        // Sadece Kolay Gelsin Marketplace olmayan siparişler
+        if (cargo !== 'Kolay Gelsin Marketplace') {
+            orderIds.push(checkbox.value);
+        }
+    });
+    
+    if (orderIds.length === 0) {
+        showToast('Seçilen siparişlerin tümü zaten Kolay Gelsin Marketplace.', 'warning');
+        return;
+    }
+    
+    // Onay sor
+    if (!confirm(`${orderIds.length} adet siparişin kargo firmasını Kolay Gelsin Marketplace olarak değiştirmek istediğinizden emin misiniz?`)) {
+        return;
+    }
+    
+    showToast(`${orderIds.length} sipariş KolayGelsin'e çevriliyor...`, 'info');
+    
+    // Butonları disable et
+    const kolayGelsinBtn = document.getElementById('kolayGelsinBtn');
+    const originalText = kolayGelsinBtn.innerHTML;
+    kolayGelsinBtn.disabled = true;
+    kolayGelsinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Çevriliyor...';
+    
+    fetch('{{ route("shipments.convert-to-kolaygelsin") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            order_ids: orderIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Başarılı: ${data.success_count} adet sipariş KolayGelsin'e çevrildi!`, 'success');
+            if (data.error_count > 0) {
+                showToast(`Uyarı: ${data.error_count} adet sipariş çevrilemedi. Detaylar: ${data.errors.join(', ')}`, 'warning');
+            }
+            // Sayfayı yenile
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showToast('Hata: ' + data.message, 'error');
+            if (data.errors && data.errors.length > 0) {
+                data.errors.forEach(error => {
+                    showToast(error, 'error');
+                });
+            }
+        }
+    })
+    .catch(error => {
+        console.error('KolayGelsin çevirme hatası:', error);
+        showToast('KolayGelsin\'e çevirme sırasında hata oluştu!', 'error');
+    })
+    .finally(() => {
+        // Butonu eski haline getir
+        kolayGelsinBtn.disabled = false;
+        kolayGelsinBtn.innerHTML = originalText;
+        updatePrintButtons(); // Button state'ini güncelle
+    });
+}
+
 // Multiple status select functionality
 function initializeStatusSelect() {
     const selectedContainer = document.getElementById('selectedStatuses');
@@ -1327,7 +1462,22 @@ function generateBulkZPLImages() {
         if (data.success) {
             showToast(`Başarılı: ${data.success_count} adet ZPL görüntüsü oluşturuldu!`, 'success');
             if (data.error_count > 0) {
-                showToast(`Uyarı: ${data.error_count} adet sipariş işlenemedi. Detaylar: ${data.errors.join(', ')}`, 'warning');
+                // Yazdırılamayan sipariş sayısını özel olarak göster
+                showToast(`⚠️ Yazdırılamayan Sipariş: ${data.error_count} adet`, 'warning');
+                
+                // Hata detaylarını da göster (opsiyonel)
+                if (data.errors && data.errors.length > 0) {
+                    // İlk 3 hatayı göster, fazlası varsa "..." ekle
+                    const maxErrorsToShow = 3;
+                    const errorsToShow = data.errors.slice(0, maxErrorsToShow);
+                    if (data.errors.length > maxErrorsToShow) {
+                        errorsToShow.push(`... ve ${data.errors.length - maxErrorsToShow} hata daha`);
+                    }
+                    
+                    setTimeout(() => {
+                        showToast(`Hata Detayları: ${errorsToShow.join(' | ')}`, 'info');
+                    }, 1000);
+                }
             }
             // Sayfayı yenile ki yeni image'lar görünsün
             setTimeout(() => {

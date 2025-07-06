@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
 use App\Helpers\KolayGelsinHelper;
 use App\Helpers\ZplGeneratorHelper;
+use App\Helpers\TrendyolHelper;
 
 class ShipmentController extends Controller
 {
@@ -82,6 +83,30 @@ class ShipmentController extends Controller
                 $query->whereHas('orderProducts.product', function($q) use ($barcodes) {
                     $q->whereIn('barcode', $barcodes);
                 });
+            }
+        }
+
+        // Ürün sayısı filtresi
+        if ($request->filled('product_count')) {
+            switch ($request->product_count) {
+                case 'single':
+                    // Tek ürün olan siparişler (toplam quantity = 1)
+                    $query->whereIn('id', function($subQuery) {
+                        $subQuery->select('order_id')
+                            ->from('order_products')
+                            ->groupBy('order_id')
+                            ->havingRaw('SUM(quantity) = 1');
+                    });
+                    break;
+                case 'multiple':
+                    // Birden fazla ürün olan siparişler (toplam quantity > 1)
+                    $query->whereIn('id', function($subQuery) {
+                        $subQuery->select('order_id')
+                            ->from('order_products')
+                            ->groupBy('order_id')
+                            ->havingRaw('SUM(quantity) > 1');
+                    });
+                    break;
             }
         }
 
@@ -844,5 +869,92 @@ class ShipmentController extends Controller
         
         // ZPL'yi birleştir ve sonlandır
         return $zplWithoutEnd . $productZpl . '^XZ';
+    }
+
+    /**
+     * Seçili siparişleri KolayGelsin Marketplace'e çevirir
+     */
+    public function convertToKolayGelsin(Request $request)
+    {
+        $request->validate([
+            'order_ids' => 'required|array',
+            'order_ids.*' => 'integer|exists:orders,id'
+        ]);
+
+        try {
+            $orderIds = $request->input('order_ids');
+            $orders = Order::with(['store'])
+                ->whereIn('id', $orderIds)
+                ->whereHas('store', function($q) {
+                    $q->where('user_id', auth()->id());
+                })
+                ->where('cargo_service_provider', '!=', 'Kolay Gelsin Marketplace')
+                ->get();
+
+            if ($orders->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Çevrilecek uygun sipariş bulunamadı.'
+                ]);
+            }
+
+            $successCount = 0;
+            $errorCount = 0;
+            $errors = [];
+
+            foreach ($orders as $order) {
+                try {
+                    // Trendyol API ile kargo firmasını güncelle
+                    TrendyolHelper::updateOrderCargoProvider($order, 'KOLAYGELSINMP');
+                    
+                    // Database'de de güncelle
+                    $order->update([
+                        'cargo_service_provider' => 'Kolay Gelsin Marketplace',
+                        'zpl_barcode' => null, // ZPL'yi sıfırla, yeniden oluşturulacak
+                        'zpl_barcode_type' => null
+                    ]);
+                    
+                    $successCount++;
+                    
+                    Log::info('Sipariş KolayGelsin\'e çevrildi', [
+                        'order_id' => $order->id,
+                        'order_package_id' => $order->order_id,
+                        'user_id' => auth()->id()
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    $errorCount++;
+                    $errorMessage = "Sipariş {$order->order_id}: " . $e->getMessage();
+                    $errors[] = $errorMessage;
+                    
+                    Log::error('KolayGelsin çevirme hatası', [
+                        'order_id' => $order->id,
+                        'order_package_id' => $order->order_id,
+                        'error' => $e->getMessage(),
+                        'user_id' => auth()->id()
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'success_count' => $successCount,
+                'error_count' => $errorCount,
+                'errors' => $errors,
+                'message' => "İşlem tamamlandı. Başarılı: {$successCount}, Hatalı: {$errorCount}"
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('KolayGelsin toplu çevirme hatası', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => auth()->id()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Toplu çevirme sırasında hata oluştu: ' . $e->getMessage()
+            ], 500);
+        }
     }
 } 

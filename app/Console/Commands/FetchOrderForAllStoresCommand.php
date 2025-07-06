@@ -32,7 +32,13 @@ class FetchOrderForAllStoresCommand extends Command
      */
     public function handle()
     {
-        User::with('stores')->get()->each(function ($user) {
+        $currentOrders = Order::whereDate('created_at', '<=', now()->subDays(6))->get();
+
+        foreach ($currentOrders as $order) {
+            OrderProduct::where('order_id', $order->id)->delete();
+            $order->delete();
+        }
+        User::with('stores')->get()->each(function (User $user) {
             $user->stores->each(function ($store) use ($user) {
                 $orders = [];
                 $page = 0;
@@ -47,7 +53,11 @@ class FetchOrderForAllStoresCommand extends Command
                     }
                 } while (true);
 
-                try {
+                try {  
+
+                  
+
+
                     $bar = $this->output->createProgressBar(count($orders));
                     $bar->start();
 
