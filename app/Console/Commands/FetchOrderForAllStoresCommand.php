@@ -32,7 +32,7 @@ class FetchOrderForAllStoresCommand extends Command
      */
     public function handle()
     {
-        $currentOrders = Order::whereDate('created_at', '<=', now()->subDays(6))->get();
+        $currentOrders = Order::whereDate('created_at', '<=', now()->subDays(15))->get();
 
         foreach ($currentOrders as $order) {
             OrderProduct::where('order_id', $order->id)->delete();
@@ -54,10 +54,6 @@ class FetchOrderForAllStoresCommand extends Command
                 } while (true);
 
                 try {  
-
-                  
-
-
                     $bar = $this->output->createProgressBar(count($orders));
                     $bar->start();
 
@@ -71,13 +67,13 @@ class FetchOrderForAllStoresCommand extends Command
                     $uniqueBarcodes = array_unique($allBarcodes);
                     $products = TrendyolHelper::getProductsByBarcodes($user, $uniqueBarcodes);
 
-                    $productMap = [];
+               /*      $productMap = [];
                     foreach ($products as $product) {
                         $productMap[$product->barcode] = $product;
                     }
-
+ */
                     foreach ($orders as $order) {
-                        $orderRecordFromDatabase = Order::firstOrCreate([
+                        $orderRecordFromDatabase = Order::updateOrCreate([
                             'order_id' => $order?->id,
                         ], [
                             'user_id' => $user->id,

@@ -135,7 +135,7 @@ class ShipmentController extends Controller
                 break;
         }
 
-        $perPage = in_array($request->get('per_page'), [10, 50, 100, 500, 1000]) ? (int)$request->get('per_page') : 10;
+        $perPage = in_array($request->get('per_page'), [10, 50, 100, 500, 1000]) ? (int)$request->get('per_page') : 100;
         $orders = $query->paginate($perPage)->appends($request->except('page'));
 
         // Kargo firmalarını ve durumları filtre için al (sadece kullanıcının store'larından)

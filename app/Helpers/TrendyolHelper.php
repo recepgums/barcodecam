@@ -31,7 +31,7 @@ class TrendyolHelper
             $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/'. $defaultStore->supplier_id .'/orders?'.$queryString;
         }else{
             $basicToken = $defaultStore->token;
-            $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/orders?'.$queryString;
+            $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/' . $defaultStore->supplier_id . '/orders?'.$queryString;
         }
 
 
@@ -62,7 +62,7 @@ class TrendyolHelper
             $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/'. $defaultStore->supplier_id .'/orders?packageId='.$packageId;
         }else{
             $basicToken = $defaultStore->token;
-            $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/orders?packageId='.$packageId;
+            $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/' . $defaultStore->supplier_id . '/orders?packageId='.$packageId;
         }
 
         $response = Http::withHeaders([
@@ -97,7 +97,7 @@ class TrendyolHelper
             $endpoint = 'https://apigw.trendyol.com/integration/product/sellers/' . $defaultStore->supplier_id . '/products';
         }else{
             $basicToken = $defaultStore->token;
-            $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $defaultStore->supplier_id . '/products';
+            $endpoint = 'https://apigw.trendyol.com/integration/product/sellers/' . $defaultStore->supplier_id . '/products';
         }
 
         for ($i = 0; $i < $retryCount; $i++) {
@@ -169,7 +169,7 @@ class TrendyolHelper
 
             }else{
                 $basicToken = $store->token;
-                $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $store->supplier_id . '/products?barcode=' . $barcode;
+                $endpoint = 'https://apigw.trendyol.com/integration/product/sellers/' . $store->supplier_id . '/products?barcode=' . $barcode;
             }
             for ($i = 0; $i < $retryCount; $i++) {
                 try {
@@ -222,7 +222,7 @@ class TrendyolHelper
             $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/'. $store->supplier_id .'/orders?'.$queryString;
         }else{
             $basicToken = $store->token;
-            $endpoint = 'https://api.trendyol.com/sapigw/suppliers/' . $store->supplier_id . '/orders?'.$queryString;
+            $endpoint = 'https://apigw.trendyol.com/integration/order/sellers/' . $store->supplier_id . '/orders?'.$queryString;
         }
 
         $response = Http::withHeaders([
